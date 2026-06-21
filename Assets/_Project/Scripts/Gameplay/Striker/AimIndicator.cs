@@ -2,69 +2,143 @@ using UnityEngine;
 
 public class AimIndicator : MonoBehaviour
 {
-    [Header("Aim Indicator Settings")]
-    public LineRenderer lineRenderer;
-    public float lineWidth = 0.02f;
-    public Color aimLineColor = Color.yellow;
-    public Color powerLineColor = Color.green;
+    [Header("Aim Settings")]
+    public float maxLineLength = 1.5f;
+    public float lineWidth = 0.012f;
+    public int dotCount = 30;
+
+    [Header("Colors")]
+    public Color lowPowerColor = new Color(0.2f, 0.9f, 0.3f);
+    public Color highPowerColor = new Color(1f, 0.2f, 0.15f);
 
     [Header("References")]
     public StrikerController strikerController;
 
+    private GameObject[] dots;
+    private GameObject powerBar;
+    private Material dotMaterial;
+
     private void Awake()
     {
-        if (lineRenderer == null)
-        {
-            lineRenderer = gameObject.AddComponent<LineRenderer>();
-        }
-
-        SetupLineRenderer();
+        CreateDots();
+        CreatePowerBar();
     }
 
-    private void Start()
+    private void CreateDots()
     {
-        if (strikerController != null)
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        dotMaterial = new Material(shader);
+        dotMaterial.SetFloat("_Metallic", 0f);
+        dotMaterial.SetFloat("_Smoothness", 0.3f);
+        dotMaterial.color = lowPowerColor;
+
+        dots = new GameObject[dotCount];
+        for (int i = 0; i < dotCount; i++)
         {
-            strikerController.OnShotFired += OnShotFired;
+            GameObject dot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            dot.name = $"AimDot_{i}";
+            dot.transform.parent = transform;
+            dot.transform.localScale = new Vector3(lineWidth, 0.001f, lineWidth);
+            dot.GetComponent<MeshRenderer>().sharedMaterial = dotMaterial;
+            Destroy(dot.GetComponent<CapsuleCollider>());
+            dot.SetActive(false);
+            dots[i] = dot;
         }
     }
 
-    private void SetupLineRenderer()
+    private void CreatePowerBar()
     {
-        lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth = lineWidth;
-        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-        lineRenderer.startColor = aimLineColor;
-        lineRenderer.endColor = powerLineColor;
-        lineRenderer.positionCount = 2;
-        lineRenderer.enabled = false;
+        powerBar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        powerBar.name = "PowerBar";
+        powerBar.transform.parent = transform;
+        powerBar.transform.localScale = new Vector3(0.003f, 0.002f, 0.3f);
+        Destroy(powerBar.GetComponent<BoxCollider>());
+
+        Material barMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        barMat.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+        barMat.SetFloat("_Metallic", 0f);
+        barMat.SetFloat("_Smoothness", 0.2f);
+        powerBar.GetComponent<MeshRenderer>().sharedMaterial = barMat;
+        powerBar.SetActive(false);
     }
 
     private void Update()
     {
-        UpdateAimIndicator();
+        UpdateAimVisual();
     }
 
-    private void UpdateAimIndicator()
+    private void UpdateAimVisual()
     {
-        if (strikerController != null && strikerController.IsAiming)
+        if (strikerController != null && strikerController.IsAiming && strikerController.ShotDirection != Vector3.zero)
         {
-            Vector3 startPoint = strikerController.transform.position;
-            Vector3 endPoint = startPoint + strikerController.ShotDirection * 2f;
+            float powerPercent = strikerController.ShotDirection.magnitude > 0 ? 0.5f : 0f;
 
-            lineRenderer.SetPosition(0, startPoint);
-            lineRenderer.SetPosition(1, endPoint);
-            lineRenderer.enabled = true;
+            Vector3 startPos = strikerController.transform.position + new Vector3(0, 0.02f, 0);
+            Vector3 direction = new Vector3(strikerController.ShotDirection.x, 0, strikerController.ShotDirection.z).normalized;
+
+            float activeLength = maxLineLength * powerPercent;
+            float spacing = activeLength / dotCount;
+
+            for (int i = 0; i < dotCount; i++)
+            {
+                float dist = (i + 1) * spacing;
+                if (dist <= maxLineLength * 0.8f)
+                {
+                    dots[i].SetActive(true);
+                    dots[i].transform.position = startPos + direction * dist;
+                    dots[i].transform.localScale = new Vector3(
+                        lineWidth * (1f - (float)i / dotCount * 0.5f),
+                        0.001f,
+                        lineWidth * (1f - (float)i / dotCount * 0.5f)
+                    );
+
+                    float t = (float)i / dotCount;
+                    Color dotColor = Color.Lerp(lowPowerColor, highPowerColor, t);
+                    dots[i].GetComponent<MeshRenderer>().sharedMaterial.color = dotColor;
+                }
+                else
+                {
+                    dots[i].SetActive(false);
+                }
+            }
+
+            powerBar.SetActive(true);
+            powerBar.transform.position = startPos + direction * (maxLineLength * 0.85f + 0.05f);
+            powerBar.transform.rotation = Quaternion.LookRotation(direction);
+            powerBar.transform.localScale = new Vector3(0.003f, 0.002f, 0.3f * powerPercent);
+
+            Material barMat = powerBar.GetComponent<MeshRenderer>().sharedMaterial;
+            barMat.color = Color.Lerp(lowPowerColor, highPowerColor, powerPercent);
         }
         else
         {
-            lineRenderer.enabled = false;
+            Hide();
         }
     }
 
-    private void OnShotFired(Vector2 direction, float power)
+    public void Hide()
     {
-        lineRenderer.enabled = false;
-        Debug.Log($"AimIndicator: Shot fired - Power: {power:F1}");
+        if (dots != null)
+        {
+            for (int i = 0; i < dots.Length; i++)
+            {
+                if (dots[i] != null) dots[i].SetActive(false);
+            }
+        }
+        if (powerBar != null) powerBar.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (dots != null)
+        {
+            for (int i = 0; i < dots.Length; i++)
+            {
+                if (dots[i] != null) Destroy(dots[i]);
+            }
+        }
+        if (powerBar != null) Destroy(powerBar);
     }
 }

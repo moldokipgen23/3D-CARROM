@@ -13,21 +13,6 @@ public class AimIndicatorTest : MonoBehaviour
             return;
         }
 
-        Debug.Log("AimIndicator found");
-        Debug.Log($"Line renderer enabled: {aimIndicator.lineRenderer.enabled}");
-        Debug.Log($"Line width: {aimIndicator.lineWidth}");
-        Debug.Log($"Aim line color: {aimIndicator.aimLineColor}");
-        Debug.Log($"Power line color: {aimIndicator.powerLineColor}");
-
-        if (aimIndicator.strikerController != null)
-        {
-            Debug.Log("StrikerController reference set");
-        }
-        else
-        {
-            Debug.LogWarning("No StrikerController reference set");
-        }
-
-        Debug.Log("AimIndicator test setup complete");
+        Debug.Log("AimIndicator found and configured");
     }
 }

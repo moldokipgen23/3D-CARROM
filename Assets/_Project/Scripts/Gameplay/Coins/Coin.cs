@@ -78,7 +78,7 @@ public class Coin : MonoBehaviour
         }
     }
 
-    public void Reset()
+    public void ResetCoin()
     {
         IsPocketed = false;
         Rigidbody.velocity = Vector3.zero;
