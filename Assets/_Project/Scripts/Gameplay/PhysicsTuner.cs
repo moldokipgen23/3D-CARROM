@@ -21,6 +21,7 @@ public class PhysicsTuner : MonoBehaviour
     private StrikerController strikerController;
     private TurnManager turnManager;
     private ScoreManager scoreManager;
+    private int testNumber;
     
     private void Start()
     {
@@ -70,13 +71,17 @@ public class PhysicsTuner : MonoBehaviour
         // Apply default striker physics
         if (defaultStrikerSettings != null && strikerController != null && strikerController.Rigidbody != null)
         {
-            if (strikerController.Rigidbody.sharedMaterial == null)
+            Collider strikerCol = strikerController.GetComponent<Collider>();
+            if (strikerCol != null)
             {
-                strikerController.Rigidbody.sharedMaterial = new PhysicMaterial();
+                if (strikerCol.sharedMaterial == null)
+                {
+                    strikerCol.sharedMaterial = new PhysicsMaterial();
+                }
+                strikerCol.sharedMaterial.dynamicFriction = defaultStrikerSettings.dynamicFriction;
+                strikerCol.sharedMaterial.staticFriction = defaultStrikerSettings.staticFriction;
+                strikerCol.sharedMaterial.bounciness = defaultStrikerSettings.bounciness;
             }
-            strikerController.Rigidbody.sharedMaterial.dynamicFriction = defaultStrikerSettings.dynamicFriction;
-            strikerController.Rigidbody.sharedMaterial.staticFriction = defaultStrikerSettings.staticFriction;
-            strikerController.Rigidbody.sharedMaterial.bounciness = defaultStrikerSettings.bounciness;
         }
         
         Debug.Log("Default physics settings applied");
@@ -84,28 +89,28 @@ public class PhysicsTuner : MonoBehaviour
     
     private System.Collections.IEnumerator RunPhysicsTests()
     {
-        int testNumber = 0;
+        testNumber = 0;
         
         // Test 1: Soft tap shot
-        yield return StartCoroutine(TestSoftTapShot(ref testNumber));
+        yield return StartCoroutine(TestSoftTapShot());
         
         // Test 2: Medium power shot
-        yield return StartCoroutine(TestMediumShot(ref testNumber));
+        yield return StartCoroutine(TestMediumShot());
         
         // Test 3: Full power shot
-        yield return StartCoroutine(TestFullPowerShot(ref testNumber));
+        yield return StartCoroutine(TestFullPowerShot());
         
         // Test 4: Direct hit on clustered coins
-        yield return StartCoroutine(TestClusteredCoins(ref testNumber));
+        yield return StartCoroutine(TestClusteredCoins());
         
         // Test 5: Pocket capture test
-        yield return StartCoroutine(TestPocketCapture(ref testNumber));
+        yield return StartCoroutine(TestPocketCapture());
         
         // Complete tuning
         CompletePhysicsTuning();
     }
     
-    private System.Collections.IEnumerator TestSoftTapShot(ref int testNumber)
+    private System.Collections.IEnumerator TestSoftTapShot()
     {
         testNumber++;
         Debug.Log($"Test {testNumber}: Soft tap shot");
@@ -132,7 +137,7 @@ public class PhysicsTuner : MonoBehaviour
         yield return new WaitForSeconds(testDelayBetweenShots);
     }
     
-    private System.Collections.IEnumerator TestMediumShot(ref int testNumber)
+    private System.Collections.IEnumerator TestMediumShot()
     {
         testNumber++;
         Debug.Log($"Test {testNumber}: Medium power shot");
@@ -154,7 +159,7 @@ public class PhysicsTuner : MonoBehaviour
         yield return new WaitForSeconds(testDelayBetweenShots);
     }
     
-    private System.Collections.IEnumerator TestFullPowerShot(ref int testNumber)
+    private System.Collections.IEnumerator TestFullPowerShot()
     {
         testNumber++;
         Debug.Log($"Test {testNumber}: Full power shot");
@@ -176,7 +181,7 @@ public class PhysicsTuner : MonoBehaviour
         yield return new WaitForSeconds(testDelayBetweenShots);
     }
     
-    private System.Collections.IEnumerator TestClusteredCoins(ref int testNumber)
+    private System.Collections.IEnumerator TestClusteredCoins()
     {
         testNumber++;
         Debug.Log($"Test {testNumber}: Clustered coins direct hit");
@@ -203,7 +208,7 @@ public class PhysicsTuner : MonoBehaviour
         yield return new WaitForSeconds(testDelayBetweenShots);
     }
     
-    private System.Collections.IEnumerator TestPocketCapture(ref int testNumber)
+    private System.Collections.IEnumerator TestPocketCapture()
     {
         testNumber++;
         Debug.Log($"Test {testNumber}: Pocket capture");

@@ -12,7 +12,7 @@ public class StrikerController : MonoBehaviour
     public float strikerRadius = 0.045f;
 
     [Header("Physics Settings")]
-    public PhysicMaterial strikerPhysicsMaterial;
+    public PhysicsMaterial strikerPhysicsMaterial;
 
     [Header("References")]
     public Rigidbody Rigidbody;
@@ -106,15 +106,17 @@ public class StrikerController : MonoBehaviour
 
         if (strikerPhysicsMaterial == null)
         {
-            strikerPhysicsMaterial = new PhysicMaterial();
+            strikerPhysicsMaterial = new PhysicsMaterial();
             strikerPhysicsMaterial.dynamicFriction = 0.5f;
             strikerPhysicsMaterial.staticFriction = 0.5f;
             strikerPhysicsMaterial.bounciness = 0.1f;
-            strikerPhysicsMaterial.frictionCombine = PhysicMaterialCombine.Minimum;
-            strikerPhysicsMaterial.bounceCombine = PhysicMaterialCombine.Minimum;
+            strikerPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
+            strikerPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
         }
 
-        Rigidbody.sharedMaterial = strikerPhysicsMaterial;
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.sharedMaterial = strikerPhysicsMaterial;
 
         if (StrikerCollider == null)
             StrikerCollider = GetComponent<Collider>();

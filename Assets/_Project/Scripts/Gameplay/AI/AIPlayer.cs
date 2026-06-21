@@ -86,7 +86,7 @@ public class AIPlayer : MonoBehaviour
         GameObject[] coins = GameObject.FindGameObjectsWithTag("Coin");
         Vector3 strikerPosition = strikerController.transform.position;
         
-        Vector3 bestShot = Vector3.zero;
+        Vector2 bestShot = Vector2.zero;
         float bestScore = float.MaxValue;
         
         int coinsEvaluated = 0;
@@ -132,7 +132,7 @@ public class AIPlayer : MonoBehaviour
         PocketTrigger[] pockets = FindObjectsOfType<PocketTrigger>();
         Vector3 strikerPosition = strikerController.transform.position;
         
-        Vector3 bestShot = Vector3.zero;
+        Vector2 bestShot = Vector2.zero;
         float bestScore = float.MaxValue;
         
         foreach (PocketTrigger pocket in pockets)

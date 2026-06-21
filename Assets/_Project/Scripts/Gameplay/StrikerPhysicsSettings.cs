@@ -23,14 +23,14 @@ public class StrikerPhysicsSettings : ScriptableObject
         }
     }
 
-    public PhysicMaterial CreatePhysicMaterial()
+    public PhysicsMaterial CreatePhysicsMaterial()
     {
-        var mat = new PhysicMaterial($"StrikerPhysics_{name}");
+        var mat = new PhysicsMaterial($"StrikerPhysics_{name}");
         mat.dynamicFriction = dynamicFriction;
         mat.staticFriction = staticFriction;
         mat.bounciness = bounciness;
-        mat.frictionCombine = PhysicMaterialCombine.Minimum;
-        mat.bounceCombine = PhysicMaterialCombine.Minimum;
+        mat.frictionCombine = PhysicsMaterialCombine.Minimum;
+        mat.bounceCombine = PhysicsMaterialCombine.Minimum;
         return mat;
     }
 }

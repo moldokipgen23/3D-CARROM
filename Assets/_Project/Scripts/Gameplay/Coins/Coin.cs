@@ -8,7 +8,7 @@ public class Coin : MonoBehaviour
 
     [Header("Physics Settings")]
     public Rigidbody Rigidbody;
-    public PhysicMaterial PhysicsMaterial;
+    public PhysicsMaterial PhysicsMaterial;
 
     [Header("Visual Settings")]
     public MeshRenderer MeshRenderer;
@@ -32,15 +32,17 @@ public class Coin : MonoBehaviour
 
         if (PhysicsMaterial == null)
         {
-            PhysicsMaterial = new PhysicMaterial();
+            PhysicsMaterial = new PhysicsMaterial();
             PhysicsMaterial.dynamicFriction = 0.3f;
             PhysicsMaterial.staticFriction = 0.3f;
             PhysicsMaterial.bounciness = 0.1f;
-            PhysicsMaterial.frictionCombine = PhysicMaterialCombine.Minimum;
-            PhysicsMaterial.bounceCombine = PhysicMaterialCombine.Minimum;
+            PhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
+            PhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
         }
 
-        Rigidbody.sharedMaterial = PhysicsMaterial;
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.sharedMaterial = PhysicsMaterial;
     }
 
     private void SetupVisuals()
@@ -62,7 +64,7 @@ public class Coin : MonoBehaviour
         if (MeshRenderer != null)
         {
             MeshRenderer.material.color = coinColor;
-            MeshRenderer.material.smoothness = 0.6f;
+            MeshRenderer.material.SetFloat("_Smoothness", 0.6f);
         }
     }
 

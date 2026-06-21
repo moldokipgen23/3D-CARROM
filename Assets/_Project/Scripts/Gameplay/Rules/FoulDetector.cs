@@ -114,6 +114,22 @@ public class FoulDetector : MonoBehaviour
         }
     }
     
+    private void CheckQueenPocketed()
+    {
+        if (queenPocketed) return;
+        GameObject[] coins = GameObject.FindGameObjectsWithTag("Coin");
+        foreach (GameObject coin in coins)
+        {
+            Coin coinComponent = coin.GetComponent<Coin>();
+            if (coinComponent != null && coinComponent.Type == CoinType.Queen && coinComponent.IsPocketed)
+            {
+                queenPocketed = true;
+                Debug.Log("Queen confirmed pocketed");
+                break;
+            }
+        }
+    }
+    
     private void CheckNoCoinTouched()
     {
         float timeSinceLastShot = Time.time - lastShotTime;

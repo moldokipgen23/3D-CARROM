@@ -28,7 +28,7 @@ public class CoinPhysicsTest : MonoBehaviour
         Debug.Log($"  Constraints: {rb.constraints}");
         Debug.Log($"  Velocity: {rb.velocity}");
 
-        PhysicMaterial material = rb.sharedMaterial;
+        PhysicsMaterial material = testCoin.GetComponent<Collider>()?.sharedMaterial;
         if (material != null)
         {
             Debug.Log($"  Physics material properties:");

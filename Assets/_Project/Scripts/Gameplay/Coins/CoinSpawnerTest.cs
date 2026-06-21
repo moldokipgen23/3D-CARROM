@@ -14,9 +14,8 @@ public class CoinSpawnerTest : MonoBehaviour
         }
 
         Debug.Log("CoinSpawner found");
-        Debug.Log($"Board dimensions: {spawner.boardWidth}x{spawner.boardHeight}");
-        Debug.Log($"Center circle diameter: {spawner.centerCircleDiameter}");
-        Debug.Log($"Expected coins - White: {spawner.whiteCoinCount}, Black: {spawner.blackCoinCount}, Queen: {spawner.queenCoinCount}");
+        Debug.Log($"Board size: {spawner.boardSize}");
+        Debug.Log($"Expected coins - White: {spawner.whiteCoinCount}, Black: {spawner.blackCoinCount}");
 
         Debug.Log($"Total expected positions: {spawner.spawnPositions.Length}");
         for (int i = 0; i < spawner.spawnPositions.Length; i++)

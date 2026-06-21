@@ -163,12 +163,9 @@ public class BoardSetup : MonoBehaviour
             pocketHole.transform.localScale = new Vector3(pocketRadius * 2f, 0.02f, pocketRadius * 2f);
             pocketHole.GetComponent<MeshRenderer>().sharedMaterial = pocketMat;
 
-            GameObject pocketRim = GameObject.CreatePrimitive(PrimitiveType.Torus);
+            GameObject pocketRim = CreateTorusRing(pocketGroup.transform, pocketRadius, pocketRimWidth, rimMat);
             pocketRim.name = "Rim";
-            pocketRim.transform.parent = pocketGroup.transform;
             pocketRim.transform.localPosition = new Vector3(0, 0.003f, 0);
-            pocketRim.transform.localScale = new Vector3(pocketRadius + pocketRimWidth, pocketRimWidth, pocketRadius + pocketRimWidth);
-            pocketRim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
 
             SphereCollider pocketCollider = pocketGroup.AddComponent<SphereCollider>();
             pocketCollider.radius = pocketRadius;
@@ -444,6 +441,70 @@ public class BoardSetup : MonoBehaviour
             new Vector3(-half, boardThickness / 2f + 0.005f, -half),
             new Vector3(half, boardThickness / 2f + 0.005f, -half)
         };
+    }
+
+    private GameObject CreateTorusRing(Transform parent, float radius, float tubeRadius, Material mat)
+    {
+        int segments = 32;
+        int tubeSegments = 8;
+        GameObject torus = new GameObject("TorusRing");
+        torus.transform.parent = parent;
+
+        MeshFilter mf = torus.AddComponent<MeshFilter>();
+        MeshRenderer mr = torus.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
+
+        Mesh mesh = new Mesh();
+        int vertCount = (segments + 1) * (tubeSegments + 1);
+        Vector3[] vertices = new Vector3[vertCount];
+        int[] triangles = new int[segments * tubeSegments * 6];
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float u = (float)i / segments * Mathf.PI * 2f;
+            float cosU = Mathf.Cos(u);
+            float sinU = Mathf.Sin(u);
+
+            for (int j = 0; j <= tubeSegments; j++)
+            {
+                float v = (float)j / tubeSegments * Mathf.PI * 2f;
+                float cosV = Mathf.Cos(v);
+                float sinV = Mathf.Sin(v);
+
+                float x = (radius + tubeRadius * cosV) * cosU;
+                float y = tubeRadius * sinV;
+                float z = (radius + tubeRadius * cosV) * sinU;
+
+                vertices[i * (tubeSegments + 1) + j] = new Vector3(x, y, z);
+            }
+        }
+
+        int triIdx = 0;
+        for (int i = 0; i < segments; i++)
+        {
+            for (int j = 0; j < tubeSegments; j++)
+            {
+                int a = i * (tubeSegments + 1) + j;
+                int b = a + tubeSegments + 1;
+                int c = a + 1;
+                int d = b + 1;
+
+                triangles[triIdx++] = a;
+                triangles[triIdx++] = b;
+                triangles[triIdx++] = c;
+
+                triangles[triIdx++] = c;
+                triangles[triIdx++] = b;
+                triangles[triIdx++] = d;
+            }
+        }
+
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        mf.sharedMesh = mesh;
+
+        return torus;
     }
 
     private void SetupLighting(GameObject parent)
