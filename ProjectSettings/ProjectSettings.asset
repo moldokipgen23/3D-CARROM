@@ -280,7 +280,7 @@ PlayerSettings:
   vcxProjDefaultLanguage:
   m_VersionName:
   m_VersionCode: 1
-  AndroidTargetArchitectures: 1
+  AndroidTargetArchitectures: 3
   AndroidTargetDevices: 0
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
