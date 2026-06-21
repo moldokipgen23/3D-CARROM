@@ -1,0 +1,12 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1027 &1
+PackageManagerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  enablePackageRegistry: 1
+  registryUrl: https://packages.unity.com
+  ScopedRegistries: []
+  additionalPackageList: []
+  m_EnablePreReleasePackages: 0
+  m_EnablePackageDependencies: 0
