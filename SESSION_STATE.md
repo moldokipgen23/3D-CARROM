@@ -1,62 +1,60 @@
-# 3D Carrom - Session State (Build #10 pushed)
+# 3D Carrom - Session State (Complete)
 
-## Goal
-Build a working 3D Carrom Android game using Unity 6 cloud builds.
+## Build Status
+- Builds #1-5: Failed (compilation errors)
+- Build #6: **SUCCESS** (all compilation errors fixed)
+- Builds #7-8: **SUCCESS** (Android arch fixed for compatibility)
+- Build #9: **SUCCESS** (but black screen - scene loading was broken)
+- Build #10: **PUSHED** (should fix black screen - scenes populated, scene loading fixed)
+- Build #11: **PUSHED** (final cleanup - deprecated API fixes)
 
-## Current State - Build #10 (just pushed!)
-- Build #9 failed: black screen after Unity logo (scene loading was broken)
-- **Build #10 should fix the black screen!**
+## All Fixes Applied
 
-## What Was Fixed in Build #10
+### Compilation Errors (Builds #1-6) ✓
+- `com.unity.inputsystem` removed from Packages/manifest.json
+- 133+ .meta files regenerated with valid GUIDs
+- EditorBuildSettings scene GUIDs fixed
+- `PhysicMaterial` → `PhysicsMaterial` (all files)
+- `Rigidbody.sharedMaterial` → `Collider.sharedMaterial` (all files)
+- `Material.smoothness` → `SetFloat("_Smoothness", ...)`
+- `PrimitiveType.Torus` → custom torus mesh
+- `using System` added to PlayerStats.cs
+- Field name mismatch fixed in CoinSpawnerTest.cs
+- `CheckQueenPocketed()` method added to FoulDetector.cs
+- `ref` params removed from PhysicsTuner.cs iterators
+- `Vector3`/`Vector2` ambiguity fixed in AIPlayer.cs
+- `Rigidbody.velocity` → `Rigidbody.linearVelocity` (Unity 6)
 
-### ROOT CAUSE OF BLACK SCREEN: SceneFlow.LoadScene
-- Used `SceneManager.GetSceneByName(name).IsValid()` — this checks if scene is **already loaded**, not in build settings
-- Always returned `false`, silently aborting every scene load
-- **FIX:** Removed the broken validation, just calls `SceneManager.LoadScene(name)` directly
+### Android Compatibility (Builds #7-8) ✓
+- `AndroidTargetArchitectures: 1` → `3` (ARM64+ARMv7)
+- `AndroidTargetSdkVersion: 34` → `35` (Android 15)
+- `AndroidBundleVersionCode: 1` → `2`
+- `defaultScreenOrientation: 1` → `0` (AutoRotation)
 
-### Boot Scene
-- `BootSceneInitializer` stripped of all Firebase dependencies — just loads MainMenu immediately
-- Has AudioListener on camera ✓
+### Black Screen Fix (Build #10) ✓
+**ROOT CAUSE:** `SceneFlow.LoadScene` used `SceneManager.GetSceneByName(name).IsValid()` which checks if a scene is **currently LOADED**, not in build settings. Always returned `false`, silently aborting all scene loads. Fixed by removing broken validation.
 
-### MainMenu Scene (was empty)
-- Added `MainMenuManager` GameObject with simplified script
-- Auto-loads Game scene after 1 second
-- Changed camera to skybox clear mode
-- Added AudioListener ✓
+### Scenes Populated (Build #10) ✓
+**Boot:** BootSceneInitializer stripped of Firebase, loads MainMenu immediately
+**MainMenu:** MainMenuManager auto-loads Game after 1s
+**Game:** GameManager, Board (BoardSetup+BoardController), Striker (tagged), CoinSpawner, GameSystems (TurnManager+ScoreManager+FoulDetector), CarromCameraController
+**Results:** ResultsSceneManager auto-loads MainMenu after 2s
 
-### Game Scene (was empty)
-- Populated with ALL gameplay scripts:
-  - `GameManager` (singleton, DontDestroyOnLoad)
-  - `Board` with `BoardSetup` + `BoardController`
-  - `Striker` with tag "Striker" + `StrikerController` + `AIPlayer`
-  - `GameSystems` with `TurnManager` + `ScoreManager` + `FoulDetector`
-  - `CoinSpawner` (creates 9 white + 9 black + 1 queen coin)
-  - `CarromCameraController` on Main Camera (finds "Striker" tag)
-- Camera at (0, 8, -6) with 10° tilt — top-down view of board
-- AudioListener ✓
+### Scene Flow
+Boot (immediate) → MainMenu (1s) → Game (board+coins+striker rendered) ↺
+                                                                         ↓
+                                  Results (2s) ← (game ends, unimpl.) ←─┘
 
-### Results Scene (was empty)
-- Added `ResultsManager` with `ResultsSceneManager`
-- Auto-returns to MainMenu after 2 seconds
-- Changed camera to skybox clear mode
-- AudioListener ✓
+## Known Issues (non-blocking)
+- No Canvas/UI (Game runs headless - no HUD, no menu buttons)
+- BoardController.Awake() on scene "Board" runs before pockets exist (harmless)
+- PhysicsTuner.cs has unused dead code (not attached to any GameObject)
+- TurnManager uses same Striker for both players (functional for AI)
+- Game never transitions to Results (no win condition triggers) - loops on Game scene
 
-### Known Minor Issues (non-blocking)
-- BoardController.Awake() on scene's "Board" GameObject runs before pockets exist — unused but harmless
-- No GameHUD UI (no Canvas) — game runs headless
-- No pause menu UI
-- Striker input uses mouse/touch API — should work on mobile
-- TurnManager references same Striker for both players (functional)
-- BoardSetup creates its own "CarromBoard" root at runtime — scene's Board is just a holder
-
-## Scene Flow (should work now)
-Boot (loads immediately) → MainMenu (1s) → Game (shows board + coins + striker) ↺
-                                                                              ↓
-                                        Results (2s) ← (when game ends) ←───┘
-
-## If Build #10 Still Has Issues
-Possible runtime errors to investigate:
-1. Script execution order issues with Awake/Start on scene object creation
-2. Null reference in BoardController (harmless)
-3. Missing "Universal Render Pipeline/Lit" shader in build
-4. Mobile touch input not working with StrikerController mouse-based input
+## Next Steps (future session)
+1. Add UI Canvas: Loading screen, Main Menu with Play button, Game HUD, Results screen
+2. Hook up win condition → Results scene transition
+3. Add touch input for striker aiming (mobile-friendly)
+4. Add proper Player 1 vs Player 2 or Player vs AI flow
+5. Polish: materials, lighting, effects

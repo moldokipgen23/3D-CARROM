@@ -31,13 +31,13 @@ public class TableEnvironment : MonoBehaviour
         table.transform.position = new Vector3(0, -tableThickness / 2f, 0);
         table.transform.localScale = new Vector3(tableSize, tableThickness, tableSize);
 
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
         Material mat = new Material(shader);
         mat.color = tableColor;
         mat.SetFloat("_Metallic", 0.15f);
-        mat.SetFloat("_Smoothness", 0.65f);
+        mat.SetFloat("_Glossiness", 0.65f);
         table.GetComponent<MeshRenderer>().sharedMaterial = mat;
 
         GameObject feltTop = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -48,19 +48,19 @@ public class TableEnvironment : MonoBehaviour
         Material feltMat = new Material(shader);
         feltMat.color = new Color(0.15f, 0.38f, 0.18f);
         feltMat.SetFloat("_Metallic", 0.02f);
-        feltMat.SetFloat("_Smoothness", 0.6f);
+        feltMat.SetFloat("_Glossiness", 0.6f);
         feltTop.GetComponent<MeshRenderer>().sharedMaterial = feltMat;
     }
 
     private void CreateTableLegs()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
         Material legMat = new Material(shader);
         legMat.color = new Color(0.3f, 0.18f, 0.08f);
         legMat.SetFloat("_Metallic", 0.1f);
-        legMat.SetFloat("_Smoothness", 0.5f);
+        legMat.SetFloat("_Glossiness", 0.5f);
 
         float legOffset = tableSize / 2f - 0.3f;
         float legHeight = 0.5f;
@@ -89,25 +89,25 @@ public class TableEnvironment : MonoBehaviour
         floor.transform.position = new Vector3(0, -tableThickness - 1.02f, 0);
         floor.transform.localScale = new Vector3(20f, 1f, 20f);
 
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
         Material floorMat = new Material(shader);
         floorMat.color = floorColor;
         floorMat.SetFloat("_Metallic", 0.05f);
-        floorMat.SetFloat("_Smoothness", 0.3f);
+        floorMat.SetFloat("_Glossiness", 0.3f);
         floor.GetComponent<MeshRenderer>().sharedMaterial = floorMat;
     }
 
     private void CreateBackground()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
         Material wallMat = new Material(shader);
         wallMat.color = new Color(0.06f, 0.05f, 0.04f);
         wallMat.SetFloat("_Metallic", 0f);
-        wallMat.SetFloat("_Smoothness", 0.1f);
+        wallMat.SetFloat("_Glossiness", 0.1f);
 
         float wallDistance = 8f;
         float wallHeight = 6f;
@@ -136,14 +136,14 @@ public class TableEnvironment : MonoBehaviour
 
     private void CreateVignetteEdges()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
         Color edgeColor = new Color(0.25f, 0.15f, 0.08f);
         Material edgeMat = new Material(shader);
         edgeMat.color = edgeColor;
         edgeMat.SetFloat("_Metallic", 0.2f);
-        edgeMat.SetFloat("_Smoothness", 0.6f);
+        edgeMat.SetFloat("_Glossiness", 0.6f);
 
         float boardHalf = 1.45f;
         float edgeHeight = 0.02f;

@@ -200,34 +200,34 @@ public class CoinSpawner : MonoBehaviour
 
     private Material CreateCoinMaterial(Color mainColor, Color darkColor, float metallic, float smoothness)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
         Material mat = new Material(shader);
         mat.color = mainColor;
         mat.SetFloat("_Metallic", metallic);
-        mat.SetFloat("_Smoothness", smoothness);
+        mat.SetFloat("_Glossiness", smoothness);
         return mat;
     }
 
     private Material CreateQueenMaterial()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
         Material mat = new Material(shader);
         mat.color = new Color(0.8f, 0.12f, 0.12f);
         mat.SetFloat("_Metallic", 0.5f);
-        mat.SetFloat("_Smoothness", 0.9f);
+        mat.SetFloat("_Glossiness", 0.9f);
         return mat;
     }
 
     private Material CreateMaterial(Color color, float metallic, float smoothness)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
         Material mat = new Material(shader);
         mat.color = color;
         mat.SetFloat("_Metallic", metallic);
-        mat.SetFloat("_Smoothness", smoothness);
+        mat.SetFloat("_Glossiness", smoothness);
         return mat;
     }
 

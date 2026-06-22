@@ -46,7 +46,7 @@ public class StrikerController : MonoBehaviour
         Material topMat = new Material(GetShader());
         topMat.color = new Color(0.95f, 0.92f, 0.88f);
         topMat.SetFloat("_Metallic", 0.85f);
-        topMat.SetFloat("_Smoothness", 0.95f);
+        topMat.SetFloat("_Glossiness", 0.95f);
 
         GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         body.name = "StrikerBody";
@@ -77,7 +77,7 @@ public class StrikerController : MonoBehaviour
         Material dotMat = new Material(GetShader());
         dotMat.color = new Color(0.85f, 0.7f, 0.2f);
         dotMat.SetFloat("_Metallic", 0.9f);
-        dotMat.SetFloat("_Smoothness", 0.95f);
+        dotMat.SetFloat("_Glossiness", 0.95f);
         centerDot.GetComponent<MeshRenderer>().sharedMaterial = dotMat;
 
         GameObject glowObj = new GameObject("StrikerGlow");
@@ -210,7 +210,7 @@ public class StrikerController : MonoBehaviour
         Material lineMat = new Material(GetShader());
         lineMat.color = Color.green;
         lineMat.SetFloat("_Metallic", 0f);
-        lineMat.SetFloat("_Smoothness", 0.3f);
+        lineMat.SetFloat("_Glossiness", 0.3f);
         line.GetComponent<MeshRenderer>().sharedMaterial = lineMat;
         Destroy(line.GetComponent<BoxCollider>());
         return line;
@@ -252,8 +252,8 @@ public class StrikerController : MonoBehaviour
 
     private Shader GetShader()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
         return shader;
     }
 
@@ -262,7 +262,7 @@ public class StrikerController : MonoBehaviour
         Material mat = new Material(GetShader());
         mat.color = new Color(0.92f, 0.88f, 0.82f);
         mat.SetFloat("_Metallic", 0.8f);
-        mat.SetFloat("_Smoothness", 0.92f);
+        mat.SetFloat("_Glossiness", 0.92f);
         return mat;
     }
 
@@ -271,7 +271,7 @@ public class StrikerController : MonoBehaviour
         Material mat = new Material(GetShader());
         mat.color = new Color(0.85f, 0.7f, 0.2f);
         mat.SetFloat("_Metallic", 0.85f);
-        mat.SetFloat("_Smoothness", 0.95f);
+        mat.SetFloat("_Glossiness", 0.95f);
         return mat;
     }
 }

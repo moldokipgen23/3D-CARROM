@@ -4,8 +4,8 @@ public static class MaterialFactory
 {
     private static Shader GetShader()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
         return shader;
     }
 
@@ -14,7 +14,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.45f, 0.25f, 0.12f);
         mat.SetFloat("_Metallic", 0.15f);
-        mat.SetFloat("_Smoothness", 0.65f);
+        mat.SetFloat("_Glossiness", 0.65f);
         Texture2D woodTex = ProceduralTextures.CreateWoodTexture(512, 512);
         mat.mainTexture = woodTex;
         return mat;
@@ -25,7 +25,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.15f, 0.38f, 0.18f);
         mat.SetFloat("_Metallic", 0.02f);
-        mat.SetFloat("_Smoothness", 0.6f);
+        mat.SetFloat("_Glossiness", 0.6f);
         mat.mainTexture = ProceduralTextures.CreateFeltTexture(512, 512);
         return mat;
     }
@@ -35,7 +35,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.02f, 0.02f, 0.02f);
         mat.SetFloat("_Metallic", 0.1f);
-        mat.SetFloat("_Smoothness", 0.3f);
+        mat.SetFloat("_Glossiness", 0.3f);
         return mat;
     }
 
@@ -44,7 +44,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.85f, 0.7f, 0.2f);
         mat.SetFloat("_Metallic", 0.85f);
-        mat.SetFloat("_Smoothness", 0.95f);
+        mat.SetFloat("_Glossiness", 0.95f);
         return mat;
     }
 
@@ -53,7 +53,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.95f, 0.92f, 0.85f);
         mat.SetFloat("_Metallic", 0.6f);
-        mat.SetFloat("_Smoothness", 0.85f);
+        mat.SetFloat("_Glossiness", 0.85f);
         mat.mainTexture = ProceduralTextures.CreateCoinTexture(256, 256, new Color(0.95f, 0.92f, 0.85f), true);
         return mat;
     }
@@ -63,7 +63,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.12f, 0.1f, 0.08f);
         mat.SetFloat("_Metallic", 0.5f);
-        mat.SetFloat("_Smoothness", 0.8f);
+        mat.SetFloat("_Glossiness", 0.8f);
         mat.mainTexture = ProceduralTextures.CreateCoinTexture(256, 256, new Color(0.12f, 0.1f, 0.08f), false);
         return mat;
     }
@@ -73,7 +73,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.8f, 0.12f, 0.12f);
         mat.SetFloat("_Metallic", 0.5f);
-        mat.SetFloat("_Smoothness", 0.9f);
+        mat.SetFloat("_Glossiness", 0.9f);
         mat.mainTexture = ProceduralTextures.CreateCoinTexture(256, 256, new Color(0.8f, 0.12f, 0.12f), false);
         return mat;
     }
@@ -83,7 +83,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.92f, 0.88f, 0.82f);
         mat.SetFloat("_Metallic", 0.8f);
-        mat.SetFloat("_Smoothness", 0.92f);
+        mat.SetFloat("_Glossiness", 0.92f);
         mat.mainTexture = ProceduralTextures.CreateMetallicTexture(256, 256, new Color(0.92f, 0.88f, 0.82f));
         return mat;
     }
@@ -93,7 +93,7 @@ public static class MaterialFactory
         Material mat = new Material(GetShader());
         mat.color = new Color(0.18f, 0.11f, 0.06f);
         mat.SetFloat("_Metallic", 0.15f);
-        mat.SetFloat("_Smoothness", 0.65f);
+        mat.SetFloat("_Glossiness", 0.65f);
         mat.mainTexture = ProceduralTextures.CreateWoodTexture(512, 512);
         return mat;
     }

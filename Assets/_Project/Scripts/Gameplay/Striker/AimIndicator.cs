@@ -26,12 +26,12 @@ public class AimIndicator : MonoBehaviour
 
     private void CreateDots()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
 
         dotMaterial = new Material(shader);
         dotMaterial.SetFloat("_Metallic", 0f);
-        dotMaterial.SetFloat("_Smoothness", 0.3f);
+        dotMaterial.SetFloat("_Glossiness", 0.3f);
         dotMaterial.color = lowPowerColor;
 
         dots = new GameObject[dotCount];
@@ -56,10 +56,10 @@ public class AimIndicator : MonoBehaviour
         powerBar.transform.localScale = new Vector3(0.003f, 0.002f, 0.3f);
         Destroy(powerBar.GetComponent<BoxCollider>());
 
-        Material barMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        Material barMat = new Material(Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit"));
         barMat.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
         barMat.SetFloat("_Metallic", 0f);
-        barMat.SetFloat("_Smoothness", 0.2f);
+        barMat.SetFloat("_Glossiness", 0.2f);
         powerBar.GetComponent<MeshRenderer>().sharedMaterial = barMat;
         powerBar.SetActive(false);
     }

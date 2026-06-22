@@ -64,7 +64,7 @@ public class Coin : MonoBehaviour
         if (MeshRenderer != null)
         {
             MeshRenderer.material.color = coinColor;
-            MeshRenderer.material.SetFloat("_Smoothness", 0.6f);
+            MeshRenderer.material.SetFloat("_Glossiness", 0.6f);
         }
     }
 

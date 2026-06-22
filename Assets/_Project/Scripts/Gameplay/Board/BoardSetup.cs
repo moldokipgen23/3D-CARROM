@@ -540,12 +540,12 @@ public class BoardSetup : MonoBehaviour
 
     private Material CreateMaterial(Color color, float metallic, float smoothness)
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
         Material mat = new Material(shader);
         mat.color = color;
         mat.SetFloat("_Metallic", metallic);
-        mat.SetFloat("_Smoothness", smoothness);
+        mat.SetFloat("_Glossiness", smoothness);
         return mat;
     }
 }
