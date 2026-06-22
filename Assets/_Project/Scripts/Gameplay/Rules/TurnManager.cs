@@ -23,7 +23,17 @@ public class TurnManager : MonoBehaviour
     private void Start()
     {
         InitializePlayers();
-        SwitchTurn();
+        // Do NOT call SwitchTurn here — coins and AI may not be ready yet.
+        // GameSceneManager calls StartGame() after all systems initialize.
+    }
+
+    public void StartGame()
+    {
+        currentPlayer = 1;
+        turnCount = 0;
+        isShotInProgress = false;
+        OnTurnChanged?.Invoke(currentPlayer);
+        Debug.Log("Game started - Player 1's turn");
     }
     
     private void InitializePlayers()

@@ -8,18 +8,16 @@ public class ScoreManager : MonoBehaviour
     [Header("Player Settings")]
     public int whitePlayerScore = 0;
     public int blackPlayerScore = 0;
-    public int queenPlayerScore = 0;
     
     [Header("Game Settings")]
-    public int whiteCoinsToWin = 9;
-    public int blackCoinsToWin = 9;
-    public int queenToWin = 1;
+    public int coinsToWin = 9;
     
     [Header("References")]
     public TurnManager turnManager;
     public GameHUD gameHUD;
     
-    private int[] playerScores = new int[3]; // 0: White, 1: Black, 2: Queen
+    private int[] playerScores = new int[2]; // 0: White (Player 1), 1: Black (Player 2)
+    private bool[] queenPocketedByPlayer = new bool[2]; // Track which player has pocketed queen properly
     private bool gameEnded = false;
     
     private void Awake()
@@ -42,38 +40,66 @@ public class ScoreManager : MonoBehaviour
     
     private void InitializeScores()
     {
-        playerScores[0] = whitePlayerScore;
-        playerScores[1] = blackPlayerScore;
-        playerScores[2] = queenPlayerScore;
+        playerScores[0] = 0;
+        playerScores[1] = 0;
+        queenPocketedByPlayer[0] = false;
+        queenPocketedByPlayer[1] = false;
     }
     
-    public void AddCoins(int player, int coinType, int count)
+    /// <summary>
+    /// Add pocketed coins to player score
+    /// </summary>
+    public void AddCoins(int player, CoinType coinType, int count)
     {
         if (gameEnded) return;
         
-        switch (coinType)
+        int playerIndex = player - 1;
+        if (playerIndex < 0 || playerIndex >= 2) return;
+        
+        // Only count white/black coins, not queen
+        if (coinType == CoinType.White || coinType == CoinType.Black)
         {
-            case 0: // White
-                playerScores[0] += count;
-                break;
-            case 1: // Black
-                playerScores[1] += count;
-                break;
-            case 2: // Queen
-                playerScores[2] += count;
-                break;
+            playerScores[playerIndex] += count;
+            Debug.Log($"Player {player} pocketed {count} coin(s). Total: {playerScores[playerIndex]}");
         }
         
         UpdateScore(player);
         CheckForWinCondition(player);
     }
     
+    /// <summary>
+    /// Register that a player has properly pocketed the queen (with cover)
+    /// </summary>
+    public void RegisterQueenPocketed(int player)
+    {
+        if (gameEnded) return;
+        
+        int playerIndex = player - 1;
+        if (playerIndex < 0 || playerIndex >= 2) return;
+        
+        queenPocketedByPlayer[playerIndex] = true;
+        Debug.Log($"Player {player} has properly pocketed the queen!");
+        UpdateHUD();
+    }
+    
+    /// <summary>
+    /// Check if player has queen properly pocketed
+    /// </summary>
+    public bool HasQueenPocketed(int player)
+    {
+        int playerIndex = player - 1;
+        if (playerIndex < 0 || playerIndex >= 2) return false;
+        return queenPocketedByPlayer[playerIndex];
+    }
+    
     public void ApplyFoulPenalty(int player)
     {
         if (gameEnded) return;
         
-        int coinsToReturn = 1;
         int playerIndex = player - 1;
+        if (playerIndex < 0 || playerIndex >= 2) return;
+        
+        int coinsToReturn = 1;
         
         if (playerScores[playerIndex] >= coinsToReturn)
         {
@@ -91,11 +117,13 @@ public class ScoreManager : MonoBehaviour
     
     public void ResetScores()
     {
-        playerScores[0] = whitePlayerScore;
-        playerScores[1] = blackPlayerScore;
-        playerScores[2] = queenPlayerScore;
+        playerScores[0] = 0;
+        playerScores[1] = 0;
+        queenPocketedByPlayer[0] = false;
+        queenPocketedByPlayer[1] = false;
         gameEnded = false;
         Debug.Log("All scores reset");
+        UpdateHUD();
     }
     
     private void UpdateScore(int player)
@@ -106,18 +134,20 @@ public class ScoreManager : MonoBehaviour
     
     private void CheckForWinCondition(int player)
     {
-        // playerScores[0]=white coins pocketed, [1]=black coins pocketed, [2]=queen pocketed
-        // Player 1 wins by pocketing all white coins; Player 2 wins by pocketing all black coins
-        // Queen must also be pocketed (with cover) for the win to count
-        bool queenPocketed = playerScores[2] >= queenToWin;
-
-        if (playerScores[0] >= whiteCoinsToWin && queenPocketed)
+        int playerIndex = player - 1;
+        if (playerIndex < 0 || playerIndex >= 2) return;
+        
+        int coinsPocketed = playerScores[playerIndex];
+        bool hasQueen = queenPocketedByPlayer[playerIndex];
+        
+        // Win condition: Must have all 9 coins AND have properly pocketed the queen
+        if (coinsPocketed >= coinsToWin && hasQueen)
         {
-            EndGame(1, "Player 1 Wins!");
+            EndGame(player, $"Player {player} wins!");
         }
-        else if (playerScores[1] >= blackCoinsToWin && queenPocketed)
+        else if (coinsPocketed >= coinsToWin && !hasQueen)
         {
-            EndGame(2, "Player 2 Wins!");
+            Debug.Log($"Player {player} has all coins but needs to pocket queen properly!");
         }
     }
     
@@ -131,10 +161,15 @@ public class ScoreManager : MonoBehaviour
         {
             resultsScreen.ShowResults(winner, message);
         }
+        else
+        {
+            Debug.Log($"GAME OVER - {message}");
+        }
     }
     
     public int GetPlayerScore(int player)
     {
+        if (player < 1 || player > 2) return 0;
         return playerScores[player - 1];
     }
     

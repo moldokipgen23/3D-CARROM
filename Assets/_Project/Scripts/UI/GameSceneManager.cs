@@ -75,6 +75,10 @@ public class GameSceneManager : MonoBehaviour
         
         // Setup event listeners
         SetupEventListeners();
+
+        // Start the game AFTER everything is initialized so AI doesn't fire before coins spawn
+        if (turnManager != null)
+            turnManager.StartGame();
     }
     
     private void SetupUI()
