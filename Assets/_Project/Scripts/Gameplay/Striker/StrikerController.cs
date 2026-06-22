@@ -253,7 +253,7 @@ public class StrikerController : MonoBehaviour
     private Shader GetShader()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
         return shader;
     }
 

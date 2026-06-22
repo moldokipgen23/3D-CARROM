@@ -5,7 +5,7 @@ public static class MaterialFactory
     private static Shader GetShader()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
         return shader;
     }
 

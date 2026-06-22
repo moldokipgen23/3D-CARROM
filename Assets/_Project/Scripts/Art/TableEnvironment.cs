@@ -32,7 +32,7 @@ public class TableEnvironment : MonoBehaviour
         table.transform.localScale = new Vector3(tableSize, tableThickness, tableSize);
 
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
 
         Material mat = new Material(shader);
         mat.color = tableColor;
@@ -55,7 +55,7 @@ public class TableEnvironment : MonoBehaviour
     private void CreateTableLegs()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
 
         Material legMat = new Material(shader);
         legMat.color = new Color(0.3f, 0.18f, 0.08f);
@@ -90,7 +90,7 @@ public class TableEnvironment : MonoBehaviour
         floor.transform.localScale = new Vector3(20f, 1f, 20f);
 
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
 
         Material floorMat = new Material(shader);
         floorMat.color = floorColor;
@@ -102,7 +102,7 @@ public class TableEnvironment : MonoBehaviour
     private void CreateBackground()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
 
         Material wallMat = new Material(shader);
         wallMat.color = new Color(0.06f, 0.05f, 0.04f);
@@ -137,7 +137,7 @@ public class TableEnvironment : MonoBehaviour
     private void CreateVignetteEdges()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
 
         Color edgeColor = new Color(0.25f, 0.15f, 0.08f);
         Material edgeMat = new Material(shader);

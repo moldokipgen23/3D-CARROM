@@ -540,12 +540,22 @@ public class BoardSetup : MonoBehaviour
 
     private Material CreateMaterial(Color color, float metallic, float smoothness)
     {
+        // Standard shader must be included in Project Settings > Graphics > Always Included Shaders.
+        // Diffuse is the guaranteed fallback — always available on all platforms.
+        // Never fall back to URP shaders; this project uses the Built-in render pipeline.
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null)
+        {
+            Debug.LogWarning("BoardSetup: Standard shader not found. Add it to Graphics Settings > Always Included Shaders. Using Diffuse fallback.");
+            shader = Shader.Find("Diffuse");
+        }
         Material mat = new Material(shader);
         mat.color = color;
-        mat.SetFloat("_Metallic", metallic);
-        mat.SetFloat("_Glossiness", smoothness);
+        if (shader.name == "Standard")
+        {
+            mat.SetFloat("_Metallic", metallic);
+            mat.SetFloat("_Glossiness", smoothness);
+        }
         return mat;
     }
 }

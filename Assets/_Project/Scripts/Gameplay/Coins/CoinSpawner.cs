@@ -201,7 +201,7 @@ public class CoinSpawner : MonoBehaviour
     private Material CreateCoinMaterial(Color mainColor, Color darkColor, float metallic, float smoothness)
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
         Material mat = new Material(shader);
         mat.color = mainColor;
         mat.SetFloat("_Metallic", metallic);
@@ -212,7 +212,7 @@ public class CoinSpawner : MonoBehaviour
     private Material CreateQueenMaterial()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
         Material mat = new Material(shader);
         mat.color = new Color(0.8f, 0.12f, 0.12f);
         mat.SetFloat("_Metallic", 0.5f);
@@ -223,7 +223,7 @@ public class CoinSpawner : MonoBehaviour
     private Material CreateMaterial(Color color, float metallic, float smoothness)
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
         Material mat = new Material(shader);
         mat.color = color;
         mat.SetFloat("_Metallic", metallic);

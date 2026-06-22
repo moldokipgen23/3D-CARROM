@@ -27,7 +27,7 @@ public class AimIndicator : MonoBehaviour
     private void CreateDots()
     {
         Shader shader = Shader.Find("Standard");
-        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Diffuse");
 
         dotMaterial = new Material(shader);
         dotMaterial.SetFloat("_Metallic", 0f);
@@ -56,7 +56,7 @@ public class AimIndicator : MonoBehaviour
         powerBar.transform.localScale = new Vector3(0.003f, 0.002f, 0.3f);
         Destroy(powerBar.GetComponent<BoxCollider>());
 
-        Material barMat = new Material(Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit"));
+        Material barMat = new Material(Shader.Find("Standard") ?? Shader.Find("Diffuse"));
         barMat.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
         barMat.SetFloat("_Metallic", 0f);
         barMat.SetFloat("_Glossiness", 0.2f);
