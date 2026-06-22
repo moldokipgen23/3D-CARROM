@@ -18,7 +18,7 @@ public class ScoreManagerTest : MonoBehaviour
         Debug.Log($"Black player score: {scoreManager.GetPlayerScore(2)}");
         Debug.Log($"Queen player score: {scoreManager.GetPlayerScore(3)}");
 
-        Debug.Log($"Win conditions - White: {scoreManager.whiteCoinsToWin}, Black: {scoreManager.blackCoinsToWin}, Queen: {scoreManager.queenToWin}");
+        Debug.Log($"Win condition - coins to win: {scoreManager.coinsToWin}");
 
         if (scoreManager.turnManager != null)
         {

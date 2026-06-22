@@ -133,7 +133,7 @@ public class GameSceneManager : MonoBehaviour
         if (scoreManager != null)
         {
             int currentPlayer = turnManager.GetCurrentPlayer();
-            scoreManager.AddCoins(currentPlayer, (int)coinType, 1);
+            scoreManager.AddCoins(currentPlayer, coinType, 1);
         }
     }
     
