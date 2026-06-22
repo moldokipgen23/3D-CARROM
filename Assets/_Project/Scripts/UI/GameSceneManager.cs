@@ -33,7 +33,8 @@ public class GameSceneManager : MonoBehaviour
         {
             gameManager = FindObjectOfType<GameManager>();
         }
-        gameManager.SetState(GameState.InGame);
+        if (gameManager != null)
+            gameManager.SetState(GameState.InGame);
         
         // Initialize striker
         if (strikerController != null)
@@ -78,8 +79,11 @@ public class GameSceneManager : MonoBehaviour
     
     private void SetupUI()
     {
-        pauseButton.onClick.AddListener(OnPauseClicked);
-        pauseMenu.SetActive(false);
+        if (pauseButton != null)
+            pauseButton.onClick.AddListener(OnPauseClicked);
+
+        if (pauseMenu != null)
+            pauseMenu.SetActive(false);
     }
     
     private void SetupEventListeners()
