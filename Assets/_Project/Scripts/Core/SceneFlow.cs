@@ -15,12 +15,7 @@ public static class SceneFlow
             return;
         }
 
-        if (!UnityEngine.SceneManagement.SceneManager.GetSceneByName(name).IsValid())
-        {
-            Debug.LogError($"Scene '{name}' not found in build settings");
-            return;
-        }
-
+        Debug.Log($"Loading scene: {name}");
         UnityEngine.SceneManagement.SceneManager.LoadScene(name);
     }
 }

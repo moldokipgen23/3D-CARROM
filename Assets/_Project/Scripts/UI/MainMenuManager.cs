@@ -1,51 +1,17 @@
 using UnityEngine;
-using UnityEngine.UI;
+using System.Collections;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [Header("UI References")]
-    public Button playButton;
-    public Button settingsButton;
-    public Button quitButton;
-    
-    [Header("Panel References")]
-    public GameObject mainMenuPanel;
-    public GameObject settingsPanel;
-    
     private void Start()
     {
-        InitializeUI();
-        playButton.onClick.AddListener(OnPlayClicked);
-        settingsButton.onClick.AddListener(OnSettingsClicked);
-        quitButton.onClick.AddListener(OnQuitClicked);
+        Debug.Log("MainMenu loading... auto-transition to Game in 1s");
+        StartCoroutine(LoadGameAfterDelay());
     }
-    
-    private void InitializeUI()
+
+    private IEnumerator LoadGameAfterDelay()
     {
-        mainMenuPanel.SetActive(true);
-        settingsPanel.SetActive(false);
-    }
-    
-    private void OnPlayClicked()
-    {
-        Debug.Log("Play button clicked");
+        yield return new WaitForSeconds(1f);
         SceneFlow.LoadScene(SceneFlow.GAME);
-    }
-    
-    private void OnSettingsClicked()
-    {
-        Debug.Log("Settings button clicked");
-        mainMenuPanel.SetActive(false);
-        settingsPanel.SetActive(true);
-    }
-    
-    private void OnQuitClicked()
-    {
-        Debug.Log("Quit button clicked");
-        #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-        #else
-        Application.Quit();
-        #endif
     }
 }

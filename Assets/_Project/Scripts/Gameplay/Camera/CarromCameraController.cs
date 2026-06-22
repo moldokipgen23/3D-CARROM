@@ -36,7 +36,7 @@ public class CarromCameraController : MonoBehaviour
     {
         if (strikerTarget == null)
         {
-            strikerTarget = GameObject.FindWithTag("Player").transform;
+            strikerTarget = GameObject.FindWithTag("Striker").transform;
         }
 
         if (strikerTarget != null)
