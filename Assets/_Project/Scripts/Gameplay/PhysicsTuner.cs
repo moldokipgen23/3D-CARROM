@@ -243,7 +243,7 @@ public class PhysicsTuner : MonoBehaviour
             Vector3 strikerPosition = strikerController.transform.position;
             strikerPosition.x = -1.5f; // Baseline position
             strikerController.transform.position = strikerPosition;
-            strikerController.Rigidbody.velocity = Vector3.zero;
+            strikerController.Rigidbody.linearVelocity = Vector3.zero;
             strikerController.Rigidbody.angularVelocity = Vector3.zero;
         }
         
