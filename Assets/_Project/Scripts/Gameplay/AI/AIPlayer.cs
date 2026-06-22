@@ -222,7 +222,6 @@ public class AIPlayer : MonoBehaviour
         Debug.Log($"AI executing shot - Angle: {angle:F1}°, Power: {power:F1}");
 
         ApplyForceToStriker(worldDirection, power);
-        // EndShot called here only — OnShotCompleted must NOT call it again
         turnManager?.EndShot();
         isReadyToShoot = false;
     }
@@ -238,8 +237,9 @@ public class AIPlayer : MonoBehaviour
     
     private void OnShotCompleted(Vector2 direction, float power)
     {
-        // EndShot is already called in ExecuteShot — do not call it again here
-        Debug.Log($"AI shot completed - Direction: {direction}, Power: {power:F1}");
+        // Called for human shots via StrikerController.OnShotFired (AI bypasses that event)
+        Debug.Log($"Shot completed - Direction: {direction}, Power: {power:F1}");
+        turnManager?.EndShot();
         isReadyToShoot = false;
     }
     
