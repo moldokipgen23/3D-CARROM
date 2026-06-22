@@ -73,9 +73,17 @@ public class Coin : MonoBehaviour
         if (!IsPocketed)
         {
             IsPocketed = true;
-            Rigidbody.velocity = Vector3.zero;
+            Rigidbody.linearVelocity = Vector3.zero;
             Rigidbody.angularVelocity = Vector3.zero;
-            transform.parent = transform.root.Find("Board").Find("Pocket0");
+            Rigidbody.isKinematic = true;
+            Transform board = transform.root.Find("Board");
+            if (board != null)
+            {
+                Transform pocket = board.Find("Pocket0");
+                if (pocket != null)
+                    transform.parent = pocket;
+            }
+            gameObject.SetActive(false);
             Debug.Log($"Coin {Type} pocketed");
         }
     }
@@ -83,7 +91,8 @@ public class Coin : MonoBehaviour
     public void ResetCoin()
     {
         IsPocketed = false;
-        Rigidbody.velocity = Vector3.zero;
+        Rigidbody.isKinematic = false;
+        Rigidbody.linearVelocity = Vector3.zero;
         Rigidbody.angularVelocity = Vector3.zero;
         transform.parent = null;
         transform.position = Vector3.zero;

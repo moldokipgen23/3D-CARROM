@@ -54,8 +54,37 @@ public class TurnManager : MonoBehaviour
         {
             isShotInProgress = false;
             CheckShotTimeout();
-            SwitchTurn();
+            StartCoroutine(WaitForPhysicsThenSwitch());
         }
+    }
+
+    private IEnumerator WaitForPhysicsThenSwitch()
+    {
+        yield return new WaitForFixedUpdate();
+
+        const float sleepThreshold = 0.02f;
+        const float maxWait = 8f;
+        float waited = 0f;
+
+        while (waited < maxWait)
+        {
+            bool allSleeping = true;
+
+            foreach (Rigidbody rb in FindObjectsOfType<Rigidbody>())
+            {
+                if (rb.linearVelocity.magnitude > sleepThreshold)
+                {
+                    allSleeping = false;
+                    break;
+                }
+            }
+
+            if (allSleeping) break;
+            waited += Time.fixedDeltaTime;
+            yield return new WaitForFixedUpdate();
+        }
+
+        SwitchTurn();
     }
     
     private void CheckShotTimeout()

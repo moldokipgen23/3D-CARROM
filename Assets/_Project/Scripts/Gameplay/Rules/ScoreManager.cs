@@ -106,20 +106,18 @@ public class ScoreManager : MonoBehaviour
     
     private void CheckForWinCondition(int player)
     {
-        int playerIndex = player - 1;
-        int coinsPocketed = playerScores[playerIndex];
-        
-        if (coinsPocketed >= whiteCoinsToWin && player == 1)
+        // playerScores[0]=white coins pocketed, [1]=black coins pocketed, [2]=queen pocketed
+        // Player 1 wins by pocketing all white coins; Player 2 wins by pocketing all black coins
+        // Queen must also be pocketed (with cover) for the win to count
+        bool queenPocketed = playerScores[2] >= queenToWin;
+
+        if (playerScores[0] >= whiteCoinsToWin && queenPocketed)
         {
-            EndGame(player, "White player wins!");
+            EndGame(1, "Player 1 Wins!");
         }
-        else if (coinsPocketed >= blackCoinsToWin && player == 2)
+        else if (playerScores[1] >= blackCoinsToWin && queenPocketed)
         {
-            EndGame(player, "Black player wins!");
-        }
-        else if (coinsPocketed >= queenToWin && player == 3)
-        {
-            EndGame(player, "Queen player wins!");
+            EndGame(2, "Player 2 Wins!");
         }
     }
     
