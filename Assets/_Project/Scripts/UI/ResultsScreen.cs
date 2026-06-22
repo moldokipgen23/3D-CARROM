@@ -12,7 +12,7 @@ public class ResultsScreen : MonoBehaviour
     [Header("Score Display")]
     public Text player1ScoreText;
     public Text player2ScoreText;
-    public Text player3ScoreText;
+    public Text queenScoreText;
     
     [Header("References")]
     public ScoreManager scoreManager;
@@ -77,9 +77,9 @@ public class ResultsScreen : MonoBehaviour
         {
             player2ScoreText.text = $"Black: {scoreManager.GetPlayerScore(2)}";
         }
-        if (player3ScoreText != null)
+        if (queenScoreText != null)
         {
-            player3ScoreText.text = $"Queen: {scoreManager.GetPlayerScore(3)}";
+            queenScoreText.text = $"Queen: {scoreManager.GetPlayerScore(3)}";
         }
     }
     

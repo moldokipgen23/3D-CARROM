@@ -41,6 +41,10 @@ public class AIPlayer : MonoBehaviour
         {
             strikerController.OnShotFired += OnShotCompleted;
         }
+        if (turnManager != null)
+        {
+            turnManager.OnTurnChanged += OnTurnChanged;
+        }
     }
     
     private void Update()
@@ -214,11 +218,13 @@ public class AIPlayer : MonoBehaviour
     private void ExecuteShot(float angle, float power)
     {
         Vector3 worldDirection = new Vector3(Mathf.Sin(angle * Mathf.Deg2Rad), 0, Mathf.Cos(angle * Mathf.Deg2Rad));
-        
+
         Debug.Log($"AI executing shot - Angle: {angle:F1}°, Power: {power:F1}");
-        
+
         ApplyForceToStriker(worldDirection, power);
-        isReadyToShoot = true;
+        // EndShot called here only — OnShotCompleted must NOT call it again
+        turnManager?.EndShot();
+        isReadyToShoot = false;
     }
     
     private void ApplyForceToStriker(Vector3 direction, float power)
@@ -232,11 +238,19 @@ public class AIPlayer : MonoBehaviour
     
     private void OnShotCompleted(Vector2 direction, float power)
     {
+        // EndShot is already called in ExecuteShot — do not call it again here
         Debug.Log($"AI shot completed - Direction: {direction}, Power: {power:F1}");
-        turnManager?.EndShot();
         isReadyToShoot = false;
     }
     
+    private void OnTurnChanged(int currentPlayer)
+    {
+        if (currentPlayer == 2)
+        {
+            isReadyToShoot = true;
+        }
+    }
+
     public void SetDifficulty(AIDifficulty newDifficulty)
     {
         difficulty = newDifficulty;
