@@ -1,74 +1,72 @@
 # CARROM GAMES 3D — AI AGENT BUILD SPEC
 
-How to use this document: paste **one batch at a time** to your coding agent
-(Claude Code, opencode, etc.). Do not paste the whole document. Each batch is
-self-contained — it tells the agent what exists already, what to build, what
-files to create, and how to know it's done. Move to the next batch only after
+## ⚠️ CRITICAL — READ THIS BEFORE ANYTHING ELSE
+
+**This project already exists with ~88 C# scripts, 4 scenes, and a full folder
+structure. It is NOT a blank project. Do NOT start from scratch.**
+
+The game compiles and runs but is NOT playable — core gameplay bugs prevent the
+game loop from completing. The fix plan is in `TODO_FIX.md` at the project root.
+
+**Correct order of operations for any AI agent:**
+1. Read `TODO_FIX.md` first. Fix all Tier 1 and Tier 2 items.
+2. Verify the game is playable (acceptance gate in TODO_FIX.md passes).
+3. Then use this README to implement any remaining missing batches.
+
+**"The project compiles with no errors" does NOT mean the game works.**
+DeepSeek, Qwen, and similar agents have reported the project as "complete" based
+on compile success alone. This is wrong. The game does not play. Use the
+acceptance checks in TODO_FIX.md — not console output — as the definition of done.
+
+**Before creating any file listed in a batch below:**
+Check if that file already exists at `Assets\_Project\Scripts\`. If it does,
+READ it first and only add what is missing. Do NOT overwrite existing files.
+
+---
+
+## HOW TO USE THIS DOCUMENT
+
+Paste **one batch at a time** to your coding agent. Do not paste the whole document.
+Each batch is self-contained — it tells the agent what exists already, what to build,
+what files to create, and how to know it's done. Move to the next batch only after
 the current one passes its acceptance criteria.
 
 ---
 
 ## BATCH 0 — PROJECT FOUNDATION
 
-**Goal:** Empty Unity project that builds to both platforms successfully.
+**Status: ALREADY COMPLETE. Skip this batch.**
 
-**Prerequisites:** Unity 6 LTS or 2022 LTS installed, Android Build Support +
-iOS Build Support modules installed.
+The project already has:
+- Unity project with 4 scenes: Boot, MainMenu, Game, Results
+- Folder structure under `Assets/_Project/`
+- `.gitignore` for Unity
+- Android target minSdkVersion 24, targetSdkVersion 35
+- Git repo initialized
 
-**Steps for agent:**
-1. Create new Unity project, **3D (URP) template**
-2. Create folder structure:
-   ```
-   Assets/
-     _Project/
-       Scripts/
-         Gameplay/
-         UI/
-         Networking/
-         Data/
-         Core/
-       Art/
-         Models/
-         Materials/
-         Textures/
-       Prefabs/
-       Scenes/
-       Audio/
-       Physics/
-   ```
-3. Create `.gitignore` for Unity (Library/, Temp/, Obj/, Logs/, UserSettings/,
-   *.csproj, *.sln excluded; Assets/, ProjectSettings/, Packages/ included)
-4. Create 4 empty scenes: `Boot`, `MainMenu`, `Game`, `Results`
-5. Create `Assets/_Project/Scripts/Core/SceneFlow.cs` — a simple static class
-   with scene name constants and a `LoadScene(string name)` wrapper
-6. Set Android target: minSdkVersion 24, targetSdkVersion latest
-7. Set iOS target: minimum iOS 13
-8. Produce one empty build per platform to confirm pipeline works
-
-**Acceptance criteria:**
+**If verifying from scratch:**
 - [ ] Project opens with no console errors
-- [ ] All 4 scenes exist and are in Build Settings, in order
+- [ ] All 4 scenes exist in Build Settings in order: Boot(0) MainMenu(1) Game(2) Results(3)
 - [ ] Android build (.apk or .aab) completes without error
 - [ ] iOS build (Xcode project export) completes without error
-- [ ] Git repo initialized, first commit made
 
 ---
 
 ## BATCH 1 — CORE ARCHITECTURE
 
-**Goal:** Clean code skeleton other batches plug into. No gameplay yet.
+**Status: ALREADY COMPLETE. Verify only, do not recreate.**
 
-**Files to create:**
-- `Core/GameManager.cs` — top-level MonoBehaviour singleton (DontDestroyOnLoad), holds current GameState enum: `{Boot, MainMenu, InGame, Results}`
-- `Core/IService.cs` — empty marker interface for the service locator pattern
-- `Core/ServiceLocator.cs` — static `Register<T>()`, `Get<T>()`, `Unregister<T>()`
-- `Data/PlayerData.cs` — plain C# class: `string PlayerId, string Username, int Coins, int Diamonds, int XP, int Level`
-- `Data/GameSettings.cs` — ScriptableObject: SFX volume, music volume, vibration toggle
+Existing files (read before touching):
+- `Core/GameManager.cs` — singleton, holds GameState enum
+- `Core/IService.cs` — marker interface (intentionally empty)
+- `Core/ServiceLocator.cs` — Register/Get/Unregister pattern
+- `Data/PlayerData.cs` — plain C# DTO
+- `Data/GameSettings.cs` — ScriptableObject for audio/vibration
 
-**Acceptance criteria:**
-- [ ] GameManager persists across scene loads (verify by loading MainMenu→Game and checking it's the same instance via a Debug.Log of GetInstanceID())
-- [ ] ServiceLocator can register and retrieve a dummy service in a test script
-- [ ] No MonoBehaviour uses `FindObjectOfType` for cross-system communication (all via ServiceLocator or events)
+**Acceptance criteria (verify these, do not rebuild):**
+- [ ] GameManager persists across scene loads (DontDestroyOnLoad)
+- [ ] ServiceLocator can register and retrieve a service
+- [ ] No MonoBehaviour uses FindObjectOfType for cross-system communication
 
 ---
 
@@ -76,15 +74,22 @@ iOS Build Support modules installed.
 
 **Goal:** Working Firebase backend connected to the Unity project.
 
+**Current state:** `Networking/FirebaseService.cs` exists but all functionality is
+behind `#if FIREBASE_SDK`. The SDK has NOT been imported. The file is a stub.
+
 **Steps for agent:**
-1. Import Firebase Unity SDK (Auth, Firestore, Analytics, Crashlytics, Remote Config modules)
-2. Create `Networking/FirebaseService.cs` implementing `IService`:
-   - `Task<bool> InitializeAsync()`
-   - `Task<string> SignInAnonymouslyAsync()` (anonymous auth for first launch, upgradeable later)
-   - `Task SavePlayerDataAsync(PlayerData data)` → writes to Firestore `players/{playerId}`
-   - `Task<PlayerData> LoadPlayerDataAsync(string playerId)`
-3. Register FirebaseService with ServiceLocator on Boot scene
-4. Enable Crashlytics, set up a test non-fatal log to confirm it reports
+1. Download Firebase Unity SDK from the Firebase console
+   (Auth, Firestore, Analytics, Crashlytics, Remote Config packages).
+2. Import each `.unitypackage` into the project via Assets → Import Package.
+3. **Important:** Importing the Firebase SDK automatically defines `FIREBASE_SDK`
+   as a scripting symbol in Player Settings. You do NOT need to add this define
+   manually — the SDK sets it. Once imported, the `#if FIREBASE_SDK` blocks in
+   `FirebaseService.cs` will compile and activate.
+4. Place `google-services.json` (Android) into `Assets/` root.
+5. Place `GoogleService-Info.plist` (iOS) into `Assets/` root.
+6. Do NOT rewrite `FirebaseService.cs` — the implementation is already there,
+   gated behind `#if FIREBASE_SDK`. It will work once the SDK is imported.
+7. Enable Crashlytics, set up a test non-fatal log to confirm it reports.
 
 **Firestore schema:**
 ```
@@ -102,89 +107,114 @@ players/{playerId}
 - [ ] App launches, signs in anonymously, writes a player doc to Firestore (verify in Firebase Console)
 - [ ] Crashlytics dashboard shows the test event
 - [ ] No Firebase init errors in console on cold start
+- [ ] The `#if FIREBASE_SDK` define is active (check: Project Settings → Player → Scripting Define Symbols)
 
 ---
 
 ## BATCH 3 — CARROM BOARD (3D)
 
-**Goal:** A board exists in the `Game` scene with correct geometry and pocket detection.
+**Status: ALREADY COMPLETE. `BoardSetup.cs` procedurally generates the full board.**
 
-**Specs:**
-- Real carrom board: 29in × 29in playing surface → use **2.9 × 2.9 Unity
-  units** (1 unit = 10in, keeps physics math sane)
-- Board mesh: simple plane/cube with beveled border (~1.5in / 0.15 units border width)
-- 4 pocket colliders: sphere triggers, radius ~0.05 units, positioned at each corner inset ~0.05 units from the edge
-- Center circle: 0.16 unit diameter, positioned at board center, **texture/decal only, no collider**
-- Baseline arrows: textured decals at each player's baseline, standard carrom layout (positioned per official carrom diagrams)
+**Do NOT recreate the board. Read `BoardSetup.cs` before touching anything.**
 
-**Files to create:**
-- `Gameplay/Board/PocketTrigger.cs` — `OnTriggerEnter` detects coin layer, fires `OnCoinPocketed(CoinType, GameObject coin)` event
-- `Gameplay/Board/BoardController.cs` — holds references to all 4 pockets, exposes `event Action<CoinType> CoinPocketed`
+**⚠️ RENDER PIPELINE WARNING:**
+This project uses the **Standard (Built-in) render pipeline**, NOT URP.
+A previous version of this spec said "URP Lit shader" — that was wrong and caused
+a black screen bug (fixed in commit `fef2161`).
 
-**Materials:**
-- URP Lit shader, wood/laminate base color texture (CC0 source, e.g. ambientCG "Wood" or "Laminate" pack), normal map for subtle grain, smoothness ~0.4-0.5 (not mirror-flat, real boards have slight sheen not a hard reflection)
+- Use `Standard` shader for all materials, NOT `Universal Render Pipeline/Lit`
+- The `_Glossiness` property controls smoothness in Standard shader (NOT `_Smoothness`)
+- Do NOT switch the project to URP — it will break all existing materials
+
+**Existing files (verify, do not recreate):**
+- `Gameplay/Board/BoardSetup.cs` — builds table, frame, pockets, center, baselines
+- `Gameplay/Board/BoardController.cs` — holds pocket references, fires CoinPocketed event
+- `Gameplay/Board/PocketTrigger.cs` — OnTriggerEnter for coin detection
+
+**Known bug in PocketTrigger.cs — fix this now:**
+PocketTrigger detects coins entering it but does NOT call `coin.Pocket()` or update
+`ScoreManager`. This is FIX-01 in `TODO_FIX.md`. Fix it before marking this batch done.
 
 **Acceptance criteria:**
-- [ ] Board visible in Game scene with correct proportions (verify against reference photo)
-- [ ] Dropping a test sphere into each pocket trigger fires the OnCoinPocketed event (test via Debug.Log)
-- [ ] Board has no console errors, lighting looks reasonable in URP (not pitch black, not blown out)
+- [ ] Board visible in Game scene with correct proportions
+- [ ] Dropping a coin into each pocket triggers the OnCoinPocketed event (check Console)
+- [ ] Score updates when a coin enters a pocket (NOT just the trigger firing)
+- [ ] No black screen — all materials use Standard shader
+- [ ] No console errors
 
 ---
 
 ## BATCH 4 — COINS
 
-**Goal:** Physically simulated coins with correct relative properties.
+**Status: ALREADY COMPLETE. Files exist. Verify physics setup.**
 
-**Specs (starting values — will need live tuning in Batch 6):**
-- Coin: cylinder mesh, diameter ~0.032 units (real coin ≈ 1.3in), height ~0.005 units
-- White/black coins: same mass (e.g. Rigidbody mass = 5), 9 of each
-- Queen: same diameter, slightly distinct color (red), mass = 5
-- Physics Material per coin: Dynamic Friction 0.3, Static Friction 0.3, Bounciness 0.1, Friction Combine = Minimum, Bounce Combine = Minimum
-- Rigidbody: `useGravity = true` but constrained — lock Y-position via `Rigidbody.constraints` so coins stay on the board plane while still allowing X/Z physics response (do NOT disable gravity entirely, you need it pressing coins onto the board for friction to work correctly)
+**Existing files:**
+- `Gameplay/Coins/CoinType.cs` — enum: White, Black, Queen
+- `Gameplay/Coins/Coin.cs` — MonoBehaviour with Type, IsPocketed, Pocket()
+- `Gameplay/Coins/CoinSpawner.cs` — spawns 19 coins in official starting formation
 
-**Files to create:**
-- `Gameplay/Coins/CoinType.cs` — enum `{White, Black, Queen}`
-- `Gameplay/Coins/Coin.cs` — MonoBehaviour: `CoinType Type`, `bool IsPocketed`, subscribes to its board's `CoinPocketed` event filtered by self
-- `Gameplay/Coins/CoinSpawner.cs` — places all 19 coins in official starting formation (concentric circles around center, queen in middle) at game start
+**Physics spec (verify these values in Inspector or code, adjust if wrong):**
+- Coin: cylinder, diameter ~0.032 units, height ~0.005 units
+- Mass: 5 for all coins (white, black, queen)
+- Physics Material: Dynamic Friction 0.3, Static Friction 0.3, Bounciness 0.1,
+  Friction Combine = Minimum, Bounce Combine = Minimum
+- Rigidbody: `useGravity = true`, Y-position locked via `RigidbodyConstraints`
+  (do NOT disable gravity — gravity is needed for friction to work on the board plane)
 
-**Material:**
-- URP Lit, white/black solid color + queen red, smoothness ~0.6 for a slight specular highlight (this sells the 3D look)
+**Known bug in Coin.cs — verify this is correct:**
+`Pocket()` method must set `IsPocketed = true`, zero out velocity, set
+`isKinematic = true`, and call `gameObject.SetActive(false)`. If any of these
+are missing, fix them (see FIX-01 in TODO_FIX.md).
 
 **Acceptance criteria:**
-- [ ] 19 coins spawn in correct official starting position
-- [ ] Coins rest stably without jittering or sliding on their own (no physics instability)
-- [ ] A test force applied to one coin causes realistic-looking collision propagation to neighbors
+- [ ] 19 coins spawn in correct official starting position (queen in center)
+- [ ] Coins rest stably — no jittering or sliding on their own
+- [ ] A pocketed coin disappears from the board and does not re-trigger pockets
+- [ ] Coin materials use Standard shader (not URP Lit)
 
 ---
 
 ## BATCH 5 — STRIKER + SHOOTING MECHANIC
 
-**Goal:** Player can aim and shoot the striker via touch/mouse drag.
+**Status: MOSTLY COMPLETE. Known bug in AimIndicator.**
 
-**Specs:**
-- Striker: larger cylinder, diameter ~0.041 units, mass = 8 (heavier than coins)
-- Same Physics Material approach as coins but separate tuned values (striker needs slightly higher friction so it doesn't slide forever after a light tap)
-- Placement: constrained to player's baseline area only (clamp X position to baseline width during aim phase)
+**Existing files:**
+- `Gameplay/Striker/StrikerController.cs` — aim/drag/force logic
+- `Gameplay/Striker/AimIndicator.cs` — LineRenderer visual (has a bug — see below)
+- `Gameplay/Camera/CarromCameraController.cs` — smooth camera follow
 
-**Input/Aim system:**
-- `Gameplay/Striker/StrikerController.cs`:
-  - On touch/mouse down on striker: enter Aim state
-  - Drag direction = aim direction (striker visually shows a direction indicator, e.g. a thin line/arrow renderer)
-  - Drag distance = power, clamped to `maxDragDistance`, mapped to `minForce`–`maxForce` (start: minForce = 2, maxForce = 15 — needs live tuning)
-  - On release: `Rigidbody.AddForce(direction * power, ForceMode.Impulse)`, exit Aim state, enter Shot state (locked until all coins stop moving)
-- Camera: tilted top-down, ~55° from vertical, positioned behind the active player's baseline, smoothly transitions side when turn changes
+**Known bug in AimIndicator.cs:**
+Power percentage is hardcoded as `0.5f` — it never reads actual shot power from
+StrikerController. Fix:
+```csharp
+// Wrong (current code):
+float powerPct = 0.5f;
 
-**Files to create:**
-- `Gameplay/Striker/StrikerController.cs`
-- `Gameplay/Striker/AimIndicator.cs` (LineRenderer-based direction/power visual)
-- `Gameplay/Camera/CarromCameraController.cs`
+// Correct — read from StrikerController:
+float powerPct = StrikerController.Instance != null
+    ? StrikerController.Instance.CurrentPowerNormalized  // 0.0 to 1.0
+    : 0f;
+```
+Add `public float CurrentPowerNormalized { get; private set; }` to StrikerController,
+updated during drag. Dot/line color and length should scale with this value.
+
+**Striker physics spec:**
+- Diameter: ~0.041 units, mass: 8 (heavier than coins)
+- Constrained to player's baseline strip during aim phase
+- Force range: minForce = 2, maxForce = 15 (starting values — Batch 6 tunes these)
+- ForceMode.Impulse
+
+**Camera:**
+- Tilted top-down, ~55° from vertical
+- Positioned behind the active player's baseline
+- Smoothly transitions side when turn changes
 
 **Acceptance criteria:**
-- [ ] Dragging the striker shows a visible aim line that follows touch/mouse
-- [ ] Releasing applies force proportional to drag distance, in the correct direction
-- [ ] Striker cannot be placed/shot outside the legal baseline zone
-- [ ] Camera angle matches reference (tilted, not flat top-down, not isometric)
-- [ ] **This batch needs a manual feel-testing pass — do not consider it done from code review alone. Play it.**
+- [ ] Drag shows a visible aim line that scales with drag distance
+- [ ] Aim line color or length changes based on power (not hardcoded)
+- [ ] Striker cannot be placed outside the legal baseline zone
+- [ ] Releasing applies force in the correct direction proportional to drag distance
+- [ ] **Manual feel-test required — code passing alone is not sufficient**
 
 ---
 
@@ -192,66 +222,97 @@ players/{playerId}
 
 **Goal:** Make it feel like real carrom. This is QA, not new features.
 
-**Process for agent (iterative):**
-1. Play 10 test shots at varying power
+**⚠️ MULTIPLAYER SYNC REQUIREMENT — do this first:**
+Before tuning, set `Edit → Project Settings → Time → Fixed Timestep` to exactly
+`0.02` (50Hz). Do NOT change this value after this batch. Multiplayer sync
+(Batch 9) depends on both clients running identical Fixed Timestep — any change
+after Batch 9 is implemented will desync clients.
+
+**Process for agent (iterative — must do all 3 passes):**
+
+**Pass 1:**
+1. Play 10 test shots at varying power levels (min, mid, max)
 2. Check: do coins glide and decelerate naturally, or stop too abruptly / slide forever?
-3. Check: does a direct hit on a clustered coin transfer force realistically (not coins flying off at absurd speed, not coins barely moving)?
-4. Adjust `Dynamic Friction` and `Bounciness` incrementally (±0.05 steps)
-5. Adjust striker mass/force range if shots feel too weak/strong across the whole power slider range
-6. Verify pocket capture: a coin moving fast over a pocket should still fall in if any part of its collider overlaps the trigger radius, not require pixel-perfect centering — but pockets shouldn't be a magnet either
+3. Check: does a direct hit on a coin cluster transfer force realistically?
+4. Log observations — do NOT adjust yet
+
+**Pass 2:**
+5. Adjust Dynamic Friction ±0.05 steps based on Pass 1 observations
+6. Adjust Bounciness ±0.05 steps
+7. Play another 10 shots
+8. Log new observations
+
+**Pass 3:**
+9. Adjust striker mass and force range if shots feel globally too weak or too strong
+10. Verify pocket capture: a coin moving over a pocket should fall in without
+    requiring pixel-perfect centering, but pockets should not act as magnets
+11. Final 10 shots — confirm feel is satisfactory
 
 **Acceptance criteria:**
-- [ ] A "soft tap" shot moves the striker a few inches and stops — not instant stop, not a long awkward slide
-- [ ] A "full power" shot can break a clustered formation realistically
-- [ ] At least 3 manual test sessions logged with adjustments made each time (this prevents an agent from marking this "done" after one pass with no real tuning)
+- [ ] Fixed Timestep is set to 0.02 and documented in ProjectSettings
+- [ ] A soft-tap shot moves striker a few units and stops naturally (not instant, not forever)
+- [ ] A full-power shot can break a clustered formation realistically
+- [ ] All 3 passes logged with adjustments noted (prevents marking done after one pass)
 
 ---
 
 ## BATCH 7 — SINGLE PLAYER GAME LOOP
 
-**Goal:** A complete, playable Classic mode game, 2 players (no AI yet — hotseat/local).
+**Status: FILES EXIST BUT BROKEN. Do not recreate — fix the existing files.**
 
-**Files to create:**
-- `Gameplay/Rules/TurnManager.cs` — tracks active player, switches turn after a shot resolves (waits for all Rigidbodies to reach near-zero velocity)
-- `Gameplay/Rules/FoulDetector.cs` — detects: striker pocketed (foul), no coin touched/pocketed in a turn (foul), queen pocketed without a "cover" (carrom queen-cover rule)
-- `Gameplay/Rules/ScoreManager.cs` — tracks pocketed coins per player, applies foul penalties (standard carrom: -1 coin returned to board on foul)
-- `UI/GameHUD.cs` — shows current player, score, remaining coins
-- `UI/ResultsScreen.cs` — win/lose/draw display, "Play Again" / "Main Menu" buttons
+**Read `TODO_FIX.md` before this batch. FIX-01 through FIX-09 all apply here.**
+
+**Existing files (fix, do not recreate):**
+- `Gameplay/Rules/TurnManager.cs` — has EndShot() but switches too early (FIX-02)
+- `Gameplay/Rules/FoulDetector.cs` — RegisterShot() never called (FIX-09)
+- `Gameplay/Rules/ScoreManager.cs` — queen cover logic wrong, enum mismatch (FIX-03)
+- `UI/GameHUD.cs` — updates every frame instead of on events (FIX-07)
+- `UI/ResultsScreen.cs` — never shown on win, auto-dismisses (FIX-06)
+
+**The acceptance criteria below are the definition of done. "No compile errors"
+is not done. "No console errors" is not done. These gameplay checks must pass:**
 
 **Acceptance criteria:**
-- [ ] Two players can play a full game locally start to finish without crashes
-- [ ] Fouls are correctly detected and penalized per standard carrom rules
-- [ ] Game correctly identifies a winner when one player pockets all their coins + queen (with cover rule)
-- [ ] Results screen appears and both buttons work
+- [ ] Two players can play a full game locally, start to finish, without softlocking
+- [ ] Turn switches ONLY after all Rigidbodies on the board reach near-zero velocity
+- [ ] Fouls are detected: striker pocketed, no coin touched, queen without cover
+- [ ] Foul penalty applies: last pocketed coin returned to board OR point deducted
+- [ ] Queen cover rule works: pocket queen + pocket own coin same turn = queen awarded;
+      pocket queen + fail to cover = queen returned to center
+- [ ] Game correctly identifies winner and shows ResultsScreen
+- [ ] ResultsScreen stays visible until player presses a button
+- [ ] Both "Play Again" and "Main Menu" buttons work
 
-**GATE: Do not proceed past this batch until Batches 3-7 together are
-genuinely fun to play, with no AI, just two people taking turns. If it's not
-fun here, no amount of economy/cosmetics in later batches will fix it.**
+**GATE: Do not proceed past this batch until 2 people (or 1 person playing both
+sides) complete a full game with correct rules, no crashes, and no softlocks.
+No amount of economy, cosmetics, or networking fixes a broken core game.**
 
 ---
 
 ## BATCH 8 — AI OPPONENT
 
-**Goal:** Single-player vs AI, 5 difficulty tiers.
+**Status: FILE EXISTS BUT BROKEN. Fix existing file.**
 
-**Approach:** Do NOT build a full physics-search AI. Use the "noisy aim" method:
-- AI picks a target coin (nearest pocketable coin = simplest heuristic)
-- Calculates ideal striker aim angle + power to send that coin toward the nearest pocket
-- Applies random noise to angle and power, noise magnitude scaled by difficulty:
-  - Easy: ±15° angle noise, ±30% power noise
-  - Medium: ±8° angle noise, ±15% power noise
-  - Hard: ±4° angle noise, ±8% power noise
-  - Expert: ±2° angle noise, ±4% power noise, picks best of 2 candidate target coins
-  - Master: ±1° angle noise, ±2% power noise, picks best of 3 candidate target coins, accounts for striker's own follow-through position for next turn (basic 1-shot lookahead)
+**Existing files:**
+- `Gameplay/AI/AIDifficulty.cs` — enum + noise params per tier (complete, do not touch)
+- `Gameplay/AI/AIPlayer.cs` — broken: never takes its turn (FIX-04 in TODO_FIX.md)
 
-**Files to create:**
-- `Gameplay/AI/AIDifficulty.cs` — enum + noise parameter struct per tier
-- `Gameplay/AI/AIPlayer.cs` — implements same input interface as StrikerController so it can "shoot" through the same code path as a human (no special-cased physics)
+**Fix summary (read FIX-04 in TODO_FIX.md for full code):**
+1. `TurnManager.SwitchTurn()` must check if the new active player is AI and call `ai.TakeTurn()`
+2. `AIPlayer.TakeTurn()` must start a coroutine that waits 0.6-1.4s, calculates a shot, fires, then calls `TurnManager.Instance.EndShot()`
+
+**AI difficulty targets (verify against AIDifficulty.cs — adjust if values differ):**
+- Easy: ±15° angle noise, ±30% power noise
+- Medium: ±8° angle noise, ±15% power noise
+- Hard: ±4° angle noise, ±8% power noise
+- Expert: ±2° angle noise, ±4% power noise
+- Master: ±1° angle noise, ±2% power noise
 
 **Acceptance criteria:**
-- [ ] AI takes its turn automatically with a believable "thinking" delay (0.5-1.5s)
-- [ ] Easy is genuinely beatable by a beginner, Master is genuinely hard to beat
-- [ ] AI never targets an illegal/already-pocketed coin
+- [ ] AI takes its turn automatically after human's turn ends, with a visible delay
+- [ ] AI never targets an already-pocketed coin
+- [ ] Easy difficulty is beatable without effort; Master requires genuine skill
+- [ ] No console errors during AI turn execution
 
 ---
 
@@ -259,36 +320,61 @@ fun here, no amount of economy/cosmetics in later batches will fix it.**
 
 **Goal:** Realtime PvP works between two devices.
 
-**Steps for agent:**
-1. Docker Compose setup for Nakama + its Postgres backend (local/dev first, production deployment is a separate later task)
-2. Import Nakama Unity SDK
-3. `Networking/NakamaService.cs` implementing `IService`:
-   - `Task ConnectAsync(string firebaseToken)` — bridges Firebase auth to Nakama custom auth
-   - `Task<IMatch> FindMatchAsync(MatchType type)` — Casual/Ranked/Private
-   - `Task SendShotAsync(Vector2 direction, float power)` — sends local player's shot to opponent
-   - `event Action<Vector2, float> OpponentShotReceived`
+**Current state:** `Networking/NakamaService.cs` exists as a stub behind `#if NAKAMA_SDK`.
 
-**Networking architecture decision (must be made explicit, not left ambiguous):**
-- **Client-authoritative with server relay** for v1 (simpler, acceptable for a casual game — server just relays shot input, both clients simulate physics locally and trust the result). Full server-authoritative physics validation is a v2 hardening task, not required for launch.
-- Both clients run identical Unity physics with identical starting coin positions (seeded/fixed), so shot input alone (direction + power) is enough to keep both clients in sync — **as long as Fixed Timestep and physics settings are identical on both clients.** Verify this explicitly.
+**Steps for agent:**
+1. Install Docker Desktop (required for local Nakama server)
+2. Run Nakama server locally using official Docker Compose:
+   ```bash
+   # Download from heroiclabs.com/docs/nakama/getting-started/docker-quickstart/
+   docker-compose up
+   ```
+3. Import Nakama Unity SDK via Package Manager
+   (add git URL: `https://github.com/heroiclabs/nakama-unity` or download .unitypackage)
+4. Importing the SDK automatically activates `#if NAKAMA_SDK` blocks in
+   `NakamaService.cs` — do NOT rewrite the file from scratch, the structure is there
+5. Update server connection in `NakamaService.cs`:
+   ```csharp
+   const string host = "127.0.0.1"; // dev; change to prod host before release
+   const int port = 7350;
+   const string serverKey = "defaultkey";
+   ```
+
+**⚠️ DETERMINISM REQUIREMENT:**
+Both clients must produce identical coin positions from identical shot input.
+This ONLY works if:
+- `CoinSpawner.cs` uses a fixed/deterministic starting formation (no `Random` calls
+  for initial coin placement — verify this in CoinSpawner.cs before Batch 9)
+- `Fixed Timestep` is `0.02` on both clients (set in Batch 6 — do not change)
+- Physics settings (friction, mass, bounciness) are identical on both clients
+  (they are, since they're baked into the project — do not change them per-device)
+
+**Networking architecture (client-authoritative relay for v1):**
+- Server relays shot input (direction + power) only — does NOT simulate physics
+- Both clients simulate physics locally from the same input
+- This is acceptable for a casual game at launch
+- Full server-authoritative physics is a v2 hardening task
 
 **Acceptance criteria:**
-- [ ] Two devices (or two Editor instances) can find each other in a casual match
-- [ ] A shot taken on Device A produces the same resulting coin positions on Device B (verify by comparing final coin positions within small tolerance)
-- [ ] Disconnection during a match is handled gracefully (opponent forfeit after timeout, not a hang)
+- [ ] Two devices/Editor instances find each other in a casual match
+- [ ] A shot on Device A produces coin positions within 0.001 unit tolerance on Device B
+- [ ] Disconnection during a match: disconnected player forfeits after 30s timeout
+- [ ] No hang on disconnect — game resolves cleanly
 
 ---
 
 ## BATCH 10 — MATCHMAKING, FRIENDS, PRIVATE ROOMS
 
-**Files to create:**
-- `Networking/MatchmakingService.cs` — Casual/Ranked queue via Nakama matchmaker API
-- `Networking/FriendsService.cs` — add/remove/invite via Nakama's built-in friends API
-- `Networking/RoomService.cs` — generates a 6-character room code, hosts join via code
+**Status: STUB FILES EXIST. Implement against Nakama API.**
+
+**Existing files (implement, do not recreate):**
+- `Networking/MatchmakingService.cs` — Casual/Ranked via Nakama matchmaker API
+- `Networking/FriendsService.cs` — add/remove/invite via Nakama friends API
+- `Networking/RoomService.cs` — 6-character room code, host/join via code
 
 **Acceptance criteria:**
 - [ ] Ranked queue matches players (test with 2+ simulated clients)
-- [ ] Friend request → accept → both show as friends
+- [ ] Friend request → accept → both show as friends in FriendsService
 - [ ] Private room code joins correctly, rejects invalid/expired codes
 
 ---
@@ -307,18 +393,29 @@ players/{playerId}/stats
   highestRank: string
 ```
 
-**Files to create:**
+**Existing files (verify/implement):**
 - `Data/PlayerStats.cs`
-- `UI/ProfileScreen.cs` — displays username, avatar, level, XP bar, stats grid
-- `Gameplay/Avatars/AvatarSystem.cs` — loads default avatar set (start with ~12 free avatars, premium/event avatars gated behind currency, structure built now even if only free ones populated initially)
+- `UI/ProfileScreen.cs`
 
 **Acceptance criteria:**
-- [ ] Stats update correctly after each match (win/loss/draw all tested)
-- [ ] Profile screen reflects live Firestore data, not cached/stale
+- [ ] Stats update correctly after each match result
+- [ ] Profile screen reflects live Firestore data, not cached/stale values
 
 ---
 
 ## BATCH 12 — ECONOMY (Currency + Rewards + Missions)
+
+**Status: STUB FILES EXIST. Known bug in DailyRewardController.**
+
+**Existing files (fix and implement):**
+- `Gameplay/Economy/CurrencyService.cs`
+- `Gameplay/Economy/DailyRewardController.cs` — **has a critical bug: FIX-10 in TODO_FIX.md**
+- `Gameplay/Economy/MissionSystem.cs`
+
+**⚠️ Bug in DailyRewardController.cs — fix before anything else in this batch:**
+`Task.Delay(rewardCooldownHours * 1000)` delays 24,000ms = 24 seconds, not 24 hours.
+Fix: `await Task.Delay(TimeSpan.FromHours(rewardCooldownHours));`
+Full fix with PlayerPrefs-based claim guard is in FIX-10 of TODO_FIX.md.
 
 **Firestore schema addition:**
 ```
@@ -331,121 +428,178 @@ players/{playerId}/economy
   missionProgress: map<missionId, progress>
 ```
 
-**Files to create:**
-- `Gameplay/Economy/CurrencyService.cs` — single source of truth for add/spend, always writes through to Firestore (no client-only currency state that can desync)
-- `Gameplay/Economy/DailyRewardController.cs` — 7-day cycle, escalating rewards
-- `Gameplay/Economy/MissionSystem.cs` — Daily (resets 24h), Weekly (resets 7d), Season (resets per season config from Remote Config)
-- `Gameplay/Economy/LuckyWheel.cs` — weighted random reward table, configurable via Remote Config (so odds can be tuned live without app update)
-
 **Acceptance criteria:**
-- [ ] Currency changes are atomic and reflected immediately in UI
-- [ ] Daily reward correctly blocks re-claiming within 24h, correctly resets streak if a day is missed
-- [ ] Missions track progress correctly across a full session and persist across app restarts
+- [ ] DailyReward cannot be claimed twice within 24 hours (test by manipulating PlayerPrefs)
+- [ ] Currency changes write through to Firestore immediately (no client-only state)
+- [ ] Missions track progress across app restarts
+- [ ] Weekly missions reset on Monday only
 
 ---
 
 ## BATCH 13 — SHOP & COSMETICS
 
-**Files to create:**
-- `UI/ShopScreen.cs` — tabbed categories (Coins/Diamonds/Boards/Strikers/Bundles/VIP)
-- `Gameplay/Cosmetics/CosmeticDatabase.cs` — ScriptableObject list of all board/striker skins with: id, display name, price, currency type, unlock requirement (purchase/event/level)
-- `Gameplay/Cosmetics/CosmeticEquipper.cs` — swaps board/striker material+mesh at runtime based on equipped cosmetic id
+**Status: STUB FILES EXIST. Known shared-material bug.**
 
-**Cosmetic sets to populate (matches original scope):**
+**Existing files (fix and implement):**
+- `UI/ShopScreen.cs`
+- `Gameplay/Cosmetics/CosmeticDatabase.cs`
+- `Gameplay/Cosmetics/CosmeticEquipper.cs` — **has a bug: FIX-14 in TODO_FIX.md**
+
+**⚠️ Bug in CosmeticEquipper.cs — fix before testing cosmetics:**
+`renderer.sharedMaterial = x` modifies the shared asset and affects all objects using
+that material. Fix: use `renderer.material = x` to create a per-instance copy.
+Full fix is in FIX-14 of TODO_FIX.md.
+
+**All materials must use Standard shader — NOT URP Lit** (see Batch 3 warning).
+
+**Cosmetic sets:**
 - Boards: Classic, Royal, Neon, Galaxy, Cyber, Fire, Ice, Temple, Heritage (9 total)
 - Strikers: Wood, Gold, Fire, Dragon, Galaxy, Legendary, Animated (7 total)
 
 **Acceptance criteria:**
-- [ ] Purchasing a cosmetic deducts correct currency and unlocks it permanently for that player
-- [ ] Equipping a cosmetic visually changes the board/striker in the next match
+- [ ] Purchasing deducts correct currency and permanently unlocks the item
+- [ ] Equipping changes board/striker visuals in the next match
 - [ ] Already-owned items show "Equip" not "Buy"
+- [ ] Equipping one cosmetic does NOT change any other object's appearance
 
 ---
 
 ## BATCH 14 — RANKING & LEADERBOARDS
 
-**Files to create:**
-- `Networking/LeaderboardService.cs` — uses Nakama's built-in leaderboard API (don't build a custom Firestore leaderboard, Nakama already has this and it's better suited for ranked data)
-- `Gameplay/Ranking/RankTierCalculator.cs` — maps rating number to tier: Bronze/Silver/Gold/Platinum/Diamond/Master/GrandMaster/Legend
-- `UI/LeaderboardScreen.cs` — tabs for Global/Country/Friends/Season
+**Status: STUB FILES EXIST.**
+
+**Existing files:**
+- `Networking/LeaderboardService.cs` — returns hardcoded fake scores, must be replaced
+- `Gameplay/Ranking/RankTierCalculator.cs` — complete, do not touch
+- `UI/LeaderboardScreen.cs` — complete UI structure, needs real data source
+
+**Use Nakama's built-in leaderboard API** — do NOT build a custom Firestore
+leaderboard. Nakama's leaderboard is already optimized for ranked data.
+
+**Tiers:** Bronze → Silver → Gold → Platinum → Diamond → Master → GrandMaster → Legend
 
 **Acceptance criteria:**
-- [ ] Rank correctly updates after ranked matches (win = rating up, loss = rating down, with standard ELO-style adjustment)
-- [ ] Leaderboard displays correctly sorted, paginated for large player counts
+- [ ] Rank updates after ranked matches (ELO-style: win = up, loss = down)
+- [ ] Leaderboard shows real player data — no hardcoded fake scores
+- [ ] Leaderboard is correctly sorted and paginated
 
 ---
 
 ## BATCH 15 — EVENTS & TOURNAMENTS
 
-**Files to create:**
-- `Gameplay/Events/EventScheduler.cs` — reads active events from Remote Config (start/end timestamps, event type, reward table)
-- `Gameplay/Tournaments/TournamentManager.cs` — bracket generation, uses Nakama tournament API
+**Status: STUB FILES EXIST.**
+
+**Existing files:**
+- `Gameplay/Events/EventScheduler.cs`
+- `Gameplay/Tournaments/TournamentManager.cs`
 
 **Acceptance criteria:**
-- [ ] An event correctly activates/deactivates based on its configured time window
-- [ ] A tournament bracket correctly advances winners and eliminates losers
+- [ ] Event activates/deactivates based on Remote Config time window
+- [ ] Tournament bracket advances winners and eliminates losers correctly
 
 ---
 
 ## BATCH 16 — MONETIZATION (Ads, VIP, Battle Pass)
 
-**Files to create:**
-- `Monetization/AdMobService.cs` — Banner, Interstitial, Rewarded, App Open, Rewarded Interstitial (Unity AdMob SDK, test ad unit IDs first, real IDs swapped in before release)
-- `Monetization/VIPSubscription.cs` — IAP integration (Unity IAP), grants no-ads flag + reward multiplier
-- `Monetization/BattlePass.cs` — Free + Premium track, 100 levels, XP-gated unlocks
+**Status: STUB FILES EXIST.**
+
+**Existing files:**
+- `Monetization/AdMobService.cs`
+- `Monetization/VIPSubscription.cs`
+- `Monetization/BattlePass.cs`
+
+**Use test ad unit IDs first. Swap to real IDs only immediately before release.**
 
 **Acceptance criteria:**
-- [ ] Test ads display correctly in all 5 formats without crashing
-- [ ] VIP purchase correctly removes ads and is detected on app restart (receipt validation, not just a local flag)
-- [ ] Battle pass XP correctly unlocks track rewards at the right levels
+- [ ] All 5 ad formats display without crashing (Banner, Interstitial, Rewarded, App Open, Rewarded Interstitial)
+- [ ] VIP purchase: receipt validated server-side, not just a local flag
+- [ ] VIP no-ads status persists across app restarts
+- [ ] Battle pass XP unlocks rewards at correct levels
 
 ---
 
 ## BATCH 17 — SOCIAL (Chat, Clans, Emotes)
 
-**Files to create:**
-- `Social/ChatService.cs` — uses Nakama's chat/channel API for Global/Friends/Clan/Match channels
-- `Social/ClanSystem.cs` — create/join clan, clan-level Nakama group
-- `Social/EmoteSystem.cs` — quick reaction triggers during a match, synced via Nakama match state
+**Status: STUB FILES EXIST.**
+
+**Existing files:**
+- `Social/ChatService.cs` — stores messages in memory only (lost on close); must use Nakama chat API
+- `Social/ClanSystem.cs` — clan data in memory only; must use Nakama groups API
+- `Social/EmoteSystem.cs`
 
 **Acceptance criteria:**
-- [ ] Messages send and receive in real time in each channel type
-- [ ] Clan creation/joining correctly updates Nakama group membership
-- [ ] Emotes display on opponent's screen within ~200ms of being triggered
+- [ ] Messages persist and load from Nakama (not lost on app close)
+- [ ] Clan creation/joining updates Nakama group membership
+- [ ] Emotes appear on opponent screen within ~200ms
 
 ---
 
 ## BATCH 18 — VISUAL & AUDIO POLISH
 
-**Files to create:**
-- `VFX/PocketCaptureEffect.cs` — particle burst on coin pocketed
+**Status: FILES EXIST. Known memory leak in AudioManager.**
+
+**Existing files:**
+- `VFX/PocketCaptureEffect.cs`
 - `VFX/VictoryEffect.cs`
-- `Audio/AudioManager.cs` — board impact, coin collision, pocket sound, button click, victory theme, all pooled (no GC allocation per sound)
+- `Audio/AudioManager.cs` — **has a memory leak: FIX-08 in TODO_FIX.md**
+
+**⚠️ Fix AudioManager before this batch:**
+SFX AudioSources are never returned to the pool after playback — the pool grows
+unboundedly. Fix is in FIX-08 of TODO_FIX.md.
+
+**All audio materials, models, shaders: Standard pipeline only (no URP).**
 
 **Acceptance criteria:**
-- [ ] All listed sound events trigger correctly with no audio clipping/overlap issues
-- [ ] Particle effects run on mobile without frame drops (test on a mid-range device, not just Editor)
+- [ ] All sound events trigger correctly with no clipping
+- [ ] Profiler shows AudioSource count stays flat during a session (pool not leaking)
+- [ ] Particle effects run without frame drops on a mid-range Android device
 
 ---
 
 ## BATCH 19 — TESTING & LAUNCH PREP
 
 **Steps for agent:**
-1. Unity Play Mode tests for: foul detection, scoring, currency transactions, AI shot legality
-2. Device test matrix: minimum 1 low-end Android, 1 mid-range Android, 1 recent iOS device
+1. Unity Play Mode tests for: foul detection, scoring, currency transactions, AI legality
+2. Device test matrix: 1 low-end Android, 1 mid-range Android, 1 recent iOS device
 3. Firebase Analytics events verified: session_start, match_complete, purchase, ad_impression
-4. Store assets: icon, screenshots (per-device-size requirements for Play Store/App Store), preview video script
+4. Store assets: icon, screenshots (per current store size requirements), preview video
 
 **Acceptance criteria:**
 - [ ] All automated tests pass
-- [ ] No crashes across the device test matrix over a 30-minute session
-- [ ] Store listing assets meet current Play Store/App Store size/format requirements (verify against current store guidelines at submission time, these change)
+- [ ] 30-minute session on low-end Android: no crash, no freeze, no softlock
+- [ ] 30-minute session on iOS: no crash, no freeze, no softlock
+- [ ] Store listing assets meet current Play Store / App Store requirements
+  (verify against current guidelines at submission time — these change regularly)
 
 ---
 
 # AGENT EXECUTION RULES (apply to every batch)
 
-1. **One batch per agent session.** Don't let context bleed between batches — start fresh, reference only "Batch N is built, here's Batch N+1" plus any specific files the new batch touches.
-2. **No batch is "done" from code compiling alone.** Gameplay batches (3-9) require actual play-testing, not just no console errors.
-3. **If a batch's acceptance criteria can't be verified, stop and flag it** — don't let the agent mark it complete and move on with an unverified system underneath.
-4. **Physics values throughout this doc are starting points, not final.** Batch 6 exists specifically to tune them — expect to revisit friction/mass/force values even after Batch 6 as later batches (cosmetics changing coin meshes, etc.) are added.
+1. **Before creating any file, check if it already exists.** Read it first.
+   Only add what is missing. Do NOT overwrite existing working code.
+
+2. **"No compile errors" is not done.** "No console errors" is not done.
+   Every gameplay batch requires the acceptance criteria to pass in Play mode.
+
+3. **One batch per agent session.** Don't let context bleed between batches.
+
+4. **If a batch's acceptance criteria cannot be verified, stop and report it.**
+   Do not mark a batch complete and move forward with an unverified system underneath.
+
+5. **Physics values are starting points, not final.**
+   Batch 6 exists to tune them. Do not change physics values in any other batch
+   unless a specific fix in TODO_FIX.md calls for it.
+
+6. **Standard shader only. No URP Lit.**
+   Any new material must use the Standard shader with `_Glossiness` for smoothness.
+   Do NOT use `_Smoothness` (that is URP). Do NOT switch the render pipeline.
+
+7. **Fixed Timestep = 0.02 and must not change after Batch 6.**
+   Multiplayer sync depends on this being identical on all clients.
+
+8. **CoinSpawner must be deterministic.**
+   No `UnityEngine.Random` calls for initial coin placement positions.
+   Both clients must produce identical starting layouts for multiplayer sync to work.
+
+9. **If a new console error appears after your edit that was not there before, revert.**
+   Do not patch forward on top of a self-introduced error.
