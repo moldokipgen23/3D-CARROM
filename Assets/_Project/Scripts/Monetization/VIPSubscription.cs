@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 public class VIPSubscription : MonoBehaviour, IService
 {
@@ -21,6 +22,9 @@ public class VIPSubscription : MonoBehaviour, IService
     public event Action<bool> OnSubscriptionChanged;
     public event Action OnRewardClaimed;
 
+    // Server-side validation flag (set by server response)
+    private bool _serverValidated;
+
     private const string VIP_KEY = "VIP_Subscribed";
     private const string VIP_TIER_KEY = "VIP_Tier";
     private const string VIP_END_DATE_KEY = "VIP_EndDate";
@@ -30,7 +34,7 @@ public class VIPSubscription : MonoBehaviour, IService
         LoadSubscriptionData();
     }
 
-    public bool IsSubscribed => _isSubscribed;
+    public bool IsSubscribed => _isSubscribed && (_serverValidated || Application.isEditor);
     public VIPTier CurrentTier => _currentTier;
 
     public async Task<bool> Subscribe(VIPTier tier)
@@ -38,11 +42,23 @@ public class VIPSubscription : MonoBehaviour, IService
         try
         {
             Debug.Log($"Subscribing to VIP tier: {tier.name}");
+            
+            // In production, this should call server-side purchase validation
+            #if UNITY_EDITOR
             await Task.Delay(100);
-
             _isSubscribed = true;
             _currentTier = tier;
             _subscriptionEndDate = DateTime.UtcNow.AddDays(tier.durationDays);
+            _serverValidated = true;
+            #else
+            // TODO: Call server-side purchase validation here
+            // For now, simulate delay and mark as not validated until server confirms
+            await Task.Delay(100);
+            _isSubscribed = true;
+            _currentTier = tier;
+            _subscriptionEndDate = DateTime.UtcNow.AddDays(tier.durationDays);
+            _serverValidated = false; // Will be set to true when server validates
+            #endif
 
             SaveSubscriptionData();
             OnSubscriptionChanged?.Invoke(true);
@@ -57,6 +73,31 @@ public class VIPSubscription : MonoBehaviour, IService
         }
     }
 
+    /// <summary>
+    /// Called by server to validate subscription after purchase verification
+    /// </summary>
+    public void ValidateSubscriptionFromServer(bool isValid, VIPTier tier, DateTime endDate)
+    {
+        _serverValidated = isValid;
+        if (isValid)
+        {
+            _currentTier = tier;
+            _subscriptionEndDate = endDate;
+            _isSubscribed = true;
+            SaveSubscriptionData();
+            OnSubscriptionChanged?.Invoke(true);
+            Debug.Log("VIP subscription validated by server");
+        }
+        else
+        {
+            _isSubscribed = false;
+            _currentTier = null;
+            SaveSubscriptionData();
+            OnSubscriptionChanged?.Invoke(false);
+            Debug.LogWarning("VIP subscription invalid per server");
+        }
+    }
+
     public async Task<bool> Unsubscribe()
     {
         try
@@ -66,6 +107,7 @@ public class VIPSubscription : MonoBehaviour, IService
 
             _isSubscribed = false;
             _currentTier = null;
+            _serverValidated = false;
 
             SaveSubscriptionData();
             OnSubscriptionChanged?.Invoke(false);
@@ -88,28 +130,29 @@ public class VIPSubscription : MonoBehaviour, IService
         {
             _isSubscribed = false;
             _currentTier = null;
+            _serverValidated = false;
             SaveSubscriptionData();
             OnSubscriptionChanged?.Invoke(false);
             return false;
         }
 
-        return true;
+        return _serverValidated || Application.isEditor;
     }
 
     public int GetAdjustedReward(int baseReward)
     {
-        if (!_isSubscribed || _currentTier == null) return baseReward;
+        if (!IsSubscribed || _currentTier == null) return baseReward;
         return baseReward * _currentTier.rewardMultiplier;
     }
 
     public bool ShouldRemoveAds()
     {
-        return _isSubscribed && removeAds;
+        return IsSubscribed && removeAds;
     }
 
     public async Task ClaimDailyVIPReward(CurrencyService currencyService)
     {
-        if (!_isSubscribed || _currentTier == null) return;
+        if (!IsSubscribed || _currentTier == null) return;
 
         await Task.Delay(100);
 
@@ -122,7 +165,7 @@ public class VIPSubscription : MonoBehaviour, IService
 
     public TimeSpan GetTimeRemaining()
     {
-        if (!_isSubscribed) return TimeSpan.Zero;
+        if (!IsSubscribed) return TimeSpan.Zero;
         return _subscriptionEndDate - DateTime.UtcNow;
     }
 
@@ -131,6 +174,7 @@ public class VIPSubscription : MonoBehaviour, IService
         PlayerPrefs.SetInt(VIP_KEY, _isSubscribed ? 1 : 0);
         PlayerPrefs.SetString(VIP_TIER_KEY, _currentTier?.id ?? "");
         PlayerPrefs.SetString(VIP_END_DATE_KEY, _subscriptionEndDate.ToBinary().ToString());
+        PlayerPrefs.SetInt("VIP_ServerValidated", _serverValidated ? 1 : 0);
         PlayerPrefs.Save();
     }
 
@@ -139,6 +183,7 @@ public class VIPSubscription : MonoBehaviour, IService
         _isSubscribed = PlayerPrefs.GetInt(VIP_KEY, 0) == 1;
         string tierId = PlayerPrefs.GetString(VIP_TIER_KEY, "");
         string endDateStr = PlayerPrefs.GetString(VIP_END_DATE_KEY, "");
+        _serverValidated = PlayerPrefs.GetInt("VIP_ServerValidated", 0) == 1;
 
         if (!string.IsNullOrEmpty(tierId) && tiers != null)
         {
