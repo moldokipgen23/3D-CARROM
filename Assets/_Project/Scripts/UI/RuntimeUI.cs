@@ -15,20 +15,17 @@ public static class RuntimeUI
     {
         if (cachedFont != null) return cachedFont;
 
-        try
-        {
-            cachedFont = Resources.GetBuiltinResource<Font>("LegacyRuntimeFont.ttf");
-        }
-        catch
-        {
-            cachedFont = null;
-        }
+        // Unity 2022.2+ renamed the built-in font to LegacyRuntime.ttf;
+        // Arial.ttf is kept as a fallback for older editors.
+        cachedFont = TryBuiltinFont("LegacyRuntime.ttf");
+        if (cachedFont == null) cachedFont = TryBuiltinFont("Arial.ttf");
 
         if (cachedFont == null)
         {
             try
             {
-                cachedFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                cachedFont = Font.CreateDynamicFontFromOSFont(
+                    new[] { "Arial", "Helvetica", "Roboto", "Segoe UI" }, 32);
             }
             catch
             {
@@ -37,6 +34,18 @@ public static class RuntimeUI
         }
 
         return cachedFont;
+    }
+
+    private static Font TryBuiltinFont(string resourceName)
+    {
+        try
+        {
+            return Resources.GetBuiltinResource<Font>(resourceName);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public static void EnsureEventSystem()
