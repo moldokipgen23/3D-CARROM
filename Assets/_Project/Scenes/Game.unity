@@ -367,10 +367,12 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   strikerMass: 8
   maxDragDistance: 1
-  minForce: 2
-  maxForce: 15
+  minForce: 6
+  maxForce: 35
   baselineWidth: 1.5
   strikerRadius: 0.045
+  baselineZ: 1.1
+  strikerRestY: 0.0585
   strikerPhysicsMaterial: {fileID: 0}
   Rigidbody: {fileID: 0}
   StrikerCollider: {fileID: 0}
@@ -403,6 +405,9 @@ GameObject:
   - component: {fileID: 950002}
   - component: {fileID: 950003}
   - component: {fileID: 950004}
+  - component: {fileID: 950005}
+  - component: {fileID: 950006}
+  - component: {fileID: 950007}
   m_Layer: 0
   m_Name: GameSystems
   m_TagString: Untagged
@@ -439,8 +444,9 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   maxTurns: 100
   shotTimeout: 5
-  player1: {fileID: 940000}
-  player2: {fileID: 940000}
+  aiControlsPlayer2: 1
+  player1: {fileID: 0}
+  player2: {fileID: 0}
 --- !u!114 &950003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -455,12 +461,9 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   whitePlayerScore: 0
   blackPlayerScore: 0
-  queenPlayerScore: 0
-  whiteCoinsToWin: 9
-  blackCoinsToWin: 9
-  queenToWin: 1
+  coinsToWin: 9
   turnManager: {fileID: 950002}
-  gameHUD: {fileID: 0}
+  gameHUD: {fileID: 950006}
 --- !u!114 &950004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -479,6 +482,7 @@ MonoBehaviour:
     m_Bits: 0
   turnManager: {fileID: 950002}
   scoreManager: {fileID: 950003}
+  coinSpawner: {fileID: 970002}
 --- !u!1 &970000
 GameObject:
   m_ObjectHideFlags: 0
@@ -562,7 +566,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ae9d3a549de4ceba89b04a1e489cd57, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  cameraDistance: 5
+  cameraDistance: 7.2
   cameraHeight: 2
   cameraAngle: 55
   smoothTime: 0.3
@@ -571,3 +575,72 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   collisionOffset: 0.1
+  boardCenter: {x: 0, y: 0, z: 0}
+  fieldOfView: 58
+--- !u!114 &950005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 950000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a9c341bc5cc40029e5544c188b21086, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  gameManager: {fileID: 920002}
+  strikerController: {fileID: 940002}
+  coinSpawner: {fileID: 970002}
+  turnManager: {fileID: 950002}
+  scoreManager: {fileID: 950003}
+  boardController: {fileID: 930003}
+  cameraController: {fileID: 960002}
+  gameHUD: {fileID: 950006}
+  resultsScreen: {fileID: 950007}
+  pauseButton: {fileID: 0}
+  pauseMenu: {fileID: 0}
+--- !u!114 &950006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 950000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07dbd11ab20e4ed2bbde783e968b1a4a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  player1UI: {fileID: 0}
+  player2UI: {fileID: 0}
+  player1ScoreText: {fileID: 0}
+  player2ScoreText: {fileID: 0}
+  player3ScoreText: {fileID: 0}
+  currentTurnText: {fileID: 0}
+  turnIndicator: {fileID: 0}
+  player1TurnColor: {r: 0.96, g: 0.94, b: 0.88, a: 1}
+  player2TurnColor: {r: 0.35, g: 0.35, b: 0.35, a: 1}
+  remainingCoinsText: {fileID: 0}
+  turnManager: {fileID: 950002}
+  scoreManager: {fileID: 950003}
+--- !u!114 &950007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 950000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75b75b27f3034759a623ee8cb064f70e, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  resultsPanel: {fileID: 0}
+  resultText: {fileID: 0}
+  playAgainButton: {fileID: 0}
+  mainMenuButton: {fileID: 0}
+  player1ScoreText: {fileID: 0}
+  player2ScoreText: {fileID: 0}
+  queenScoreText: {fileID: 0}
+  scoreManager: {fileID: 950003}

@@ -31,7 +31,10 @@ public class BoardSetup : MonoBehaviour
     private void BuildProfessionalBoard()
     {
         GameObject boardRoot = new GameObject("CarromBoard");
-        boardRoot.transform.position = Vector3.zero;
+        boardRoot.transform.SetParent(transform, false);
+        boardRoot.transform.localPosition = Vector3.zero;
+        boardRoot.transform.localRotation = Quaternion.identity;
+        boardRoot.transform.localScale = Vector3.one;
 
         CreateTableSurface(boardRoot);
         CreatePlayingSurface(boardRoot);
@@ -43,11 +46,13 @@ public class BoardSetup : MonoBehaviour
         CreateArrowMarkers(boardRoot);
         CreateCornerDecorations(boardRoot);
 
-        BoxCollider boardCollider = boardRoot.AddComponent<BoxCollider>();
-        boardCollider.center = new Vector3(0, boardThickness / 2f, 0);
-        boardCollider.size = new Vector3(boardSize + borderWidth * 2, boardThickness, boardSize + borderWidth * 2);
+        // The playing-surface cube provides the collision floor.  A second
+        // full-size collider here would overlap the coins and cause jitter.
+        BoardController boardController = GetComponent<BoardController>();
+        if (boardController == null)
+            boardController = boardRoot.AddComponent<BoardController>();
 
-        BoardController boardController = boardRoot.AddComponent<BoardController>();
+        boardController.SetupPockets();
         boardController.SetPocketLayer(coinLayer);
 
         SetupLighting(boardRoot);
@@ -141,6 +146,7 @@ public class BoardSetup : MonoBehaviour
 
             Material rimMat = CreateMaterial(new Color(0.55f, 0.32f, 0.15f), 0.1f, 0.7f);
             rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
+            RemoveCollider(rim);
         }
     }
 
@@ -152,7 +158,7 @@ public class BoardSetup : MonoBehaviour
 
         for (int i = 0; i < 4; i++)
         {
-            GameObject pocketGroup = new GameObject($"Pocket_{i}");
+            GameObject pocketGroup = new GameObject($"Pocket{i}");
             pocketGroup.transform.parent = parent.transform;
             pocketGroup.transform.position = pocketPositions[i];
 
@@ -162,6 +168,7 @@ public class BoardSetup : MonoBehaviour
             pocketHole.transform.localPosition = new Vector3(0, -0.005f, 0);
             pocketHole.transform.localScale = new Vector3(pocketRadius * 2f, 0.02f, pocketRadius * 2f);
             pocketHole.GetComponent<MeshRenderer>().sharedMaterial = pocketMat;
+            RemoveCollider(pocketHole);
 
             GameObject pocketRim = CreateTorusRing(pocketGroup.transform, pocketRadius, pocketRimWidth, rimMat);
             pocketRim.name = "Rim";
@@ -364,6 +371,7 @@ public class BoardSetup : MonoBehaviour
         dot.transform.position = pos;
         dot.transform.localScale = new Vector3(radius * 2f, 0.001f, radius * 2f);
         dot.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.5f);
+        RemoveCollider(dot);
     }
 
     private void CreateLineSegment(GameObject parent, float length, float thickness, float y, Color color)
@@ -374,6 +382,7 @@ public class BoardSetup : MonoBehaviour
         line.transform.localPosition = new Vector3(0, 0.001f, 0);
         line.transform.localScale = new Vector3(length, 0.002f, thickness);
         line.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.5f);
+        RemoveCollider(line);
     }
 
     private void CreateArcAtBase(GameObject parent, bool horizontal, float y)
@@ -523,6 +532,15 @@ public class BoardSetup : MonoBehaviour
 
         CreateFillLight(parent, new Vector3(-1.5f, 1.5f, -1.5f), new Color(0.6f, 0.7f, 0.9f), 0.4f);
         CreateFillLight(parent, new Vector3(1.5f, 1.5f, 1.5f), new Color(0.9f, 0.85f, 0.7f), 0.3f);
+    }
+
+    private void RemoveCollider(GameObject go)
+    {
+        if (go == null) return;
+        Collider collider = go.GetComponent<Collider>();
+        if (collider == null) return;
+        collider.enabled = false;
+        Destroy(collider);
     }
 
     private void CreateFillLight(GameObject parent, Vector3 pos, Color color, float intensity)

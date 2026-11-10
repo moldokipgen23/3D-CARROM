@@ -73,7 +73,7 @@ public class AimIndicator : MonoBehaviour
     {
         if (strikerController != null && strikerController.IsAiming && strikerController.ShotDirection != Vector3.zero)
         {
-            float powerPercent = strikerController.ShotDirection.magnitude > 0 ? 0.5f : 0f;
+            float powerPercent = Mathf.Clamp01(strikerController.CurrentPowerNormalized);
 
             Vector3 startPos = strikerController.transform.position + new Vector3(0, 0.02f, 0);
             Vector3 direction = new Vector3(strikerController.ShotDirection.x, 0, strikerController.ShotDirection.z).normalized;

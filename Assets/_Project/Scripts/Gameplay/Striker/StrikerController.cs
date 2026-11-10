@@ -3,13 +3,19 @@ using System;
 
 public class StrikerController : MonoBehaviour
 {
+    public static StrikerController Instance { get; private set; }
+
     [Header("Striker Settings")]
     public float strikerMass = 8f;
     public float maxDragDistance = 1.0f;
-    public float minForce = 2f;
-    public float maxForce = 15f;
+    public float minForce = 6f;
+    public float maxForce = 35f;
     public float baselineWidth = 1.5f;
     public float strikerRadius = 0.045f;
+
+    [Header("Table Layout")]
+    public float baselineZ = 1.1f;
+    public float strikerRestY = 0.0585f;
 
     [Header("Physics Settings")]
     public PhysicsMaterial strikerPhysicsMaterial;
@@ -20,33 +26,31 @@ public class StrikerController : MonoBehaviour
 
     public event Action<Vector2, float> OnShotFired;
 
-    public bool IsAiming => isAiming;
-    public Vector3 ShotDirection => shotDirection;
+    public bool IsAiming { get { return isAiming; } }
+    public Vector3 ShotDirection { get { return shotDirection; } }
+    public float CurrentPowerNormalized { get; private set; }
 
     private Camera mainCamera;
     private Vector3 shotDirection;
     private float shotPower;
     private bool isAiming = false;
-    private Vector3 aimStartPosition;
-    private Vector3 aimEndPosition;
     private GameObject strikerGlow;
     private GameObject aimLine;
 
     private void Awake()
     {
+        Instance = this;
+
         mainCamera = Camera.main;
         SetupPhysics();
         BuildStrikerVisual();
+        ResetToBaseline(1);
     }
 
     private void BuildStrikerVisual()
     {
         Material bodyMat = CreateStrikerMaterial();
         Material rimMat = CreateGoldRimMaterial();
-        Material topMat = new Material(GetShader());
-        topMat.color = new Color(0.95f, 0.92f, 0.88f);
-        topMat.SetFloat("_Metallic", 0.85f);
-        topMat.SetFloat("_Glossiness", 0.95f);
 
         GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         body.name = "StrikerBody";
@@ -54,6 +58,7 @@ public class StrikerController : MonoBehaviour
         body.transform.localPosition = Vector3.zero;
         body.transform.localScale = new Vector3(strikerRadius * 2f, 0.015f, strikerRadius * 2f);
         body.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
+        RemoveCollider(body);
 
         GameObject rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         rim.name = "StrikerRim";
@@ -61,13 +66,19 @@ public class StrikerController : MonoBehaviour
         rim.transform.localPosition = new Vector3(0, 0, 0);
         rim.transform.localScale = new Vector3(strikerRadius * 2.3f, 0.013f, strikerRadius * 2.3f);
         rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
+        RemoveCollider(rim);
 
         GameObject top = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         top.name = "StrikerTop";
         top.transform.parent = transform;
         top.transform.localPosition = new Vector3(0, 0.016f, 0);
         top.transform.localScale = new Vector3(strikerRadius * 1.5f, 0.005f, strikerRadius * 1.5f);
+        Material topMat = new Material(GetShader());
+        topMat.color = new Color(0.95f, 0.92f, 0.88f);
+        topMat.SetFloat("_Metallic", 0.85f);
+        topMat.SetFloat("_Glossiness", 0.95f);
         top.GetComponent<MeshRenderer>().sharedMaterial = topMat;
+        RemoveCollider(top);
 
         GameObject centerDot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         centerDot.name = "CenterDot";
@@ -79,6 +90,7 @@ public class StrikerController : MonoBehaviour
         dotMat.SetFloat("_Metallic", 0.9f);
         dotMat.SetFloat("_Glossiness", 0.95f);
         centerDot.GetComponent<MeshRenderer>().sharedMaterial = dotMat;
+        RemoveCollider(centerDot);
 
         GameObject glowObj = new GameObject("StrikerGlow");
         glowObj.transform.parent = transform;
@@ -94,51 +106,80 @@ public class StrikerController : MonoBehaviour
     private void SetupPhysics()
     {
         if (Rigidbody == null)
+            Rigidbody = GetComponent<Rigidbody>();
+
+        if (Rigidbody == null)
             Rigidbody = gameObject.AddComponent<Rigidbody>();
 
         Rigidbody.mass = strikerMass;
         Rigidbody.useGravity = true;
-        Rigidbody.constraints = RigidbodyConstraints.FreezePositionY;
+        Rigidbody.constraints = RigidbodyConstraints.FreezePositionY |
+                                RigidbodyConstraints.FreezeRotationX |
+                                RigidbodyConstraints.FreezeRotationZ;
         Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         Rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        Rigidbody.drag = 0.3f;
-        Rigidbody.angularDrag = 0.8f;
+        Rigidbody.linearDamping = 0.3f;
+        Rigidbody.angularDamping = 0.8f;
 
         if (strikerPhysicsMaterial == null)
         {
             strikerPhysicsMaterial = new PhysicsMaterial();
-            strikerPhysicsMaterial.dynamicFriction = 0.5f;
-            strikerPhysicsMaterial.staticFriction = 0.5f;
-            strikerPhysicsMaterial.bounciness = 0.1f;
+            strikerPhysicsMaterial.dynamicFriction = 0.2f;
+            strikerPhysicsMaterial.staticFriction = 0.2f;
+            strikerPhysicsMaterial.bounciness = 0.15f;
             strikerPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
             strikerPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
         }
 
-        Collider col = GetComponent<Collider>();
-        if (col != null)
-            col.sharedMaterial = strikerPhysicsMaterial;
-
+        StrikerCollider = GetComponent<Collider>();
         if (StrikerCollider == null)
-            StrikerCollider = GetComponent<Collider>();
+        {
+            BoxCollider box = gameObject.AddComponent<BoxCollider>();
+            box.size = new Vector3(strikerRadius * 2f, 0.03f, strikerRadius * 2f);
+            box.center = Vector3.zero;
+            StrikerCollider = box;
+        }
+
+        StrikerCollider.sharedMaterial = strikerPhysicsMaterial;
     }
 
     private void Update()
     {
+        if (!CanAcceptInput())
+        {
+            if (isAiming)
+                CancelAim();
+            return;
+        }
+
         HandleInput();
         UpdateAimVisual();
+    }
+
+    private bool CanAcceptInput()
+    {
+        if (TurnManager.Instance == null) return true;
+        if (TurnManager.Instance.IsShotInProgress()) return false;
+        if (ScoreManager.Instance != null && ScoreManager.Instance.IsGameEnded) return false;
+
+        int player = TurnManager.Instance.GetCurrentPlayer();
+        return player == 1 || !TurnManager.Instance.aiControlsPlayer2;
     }
 
     private void HandleInput()
     {
         if (Input.GetMouseButtonDown(0))
         {
+            if (mainCamera == null)
+                mainCamera = Camera.main;
+
+            if (mainCamera == null) return;
+
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
 
             if (Physics.Raycast(ray, out hit) && hit.collider == StrikerCollider)
-            {
                 StartAiming();
-            }
         }
         else if (Input.GetMouseButtonUp(0) && isAiming)
         {
@@ -153,9 +194,9 @@ public class StrikerController : MonoBehaviour
     private void StartAiming()
     {
         isAiming = true;
-        aimStartPosition = Input.mousePosition;
         shotDirection = Vector3.zero;
         shotPower = 0f;
+        CurrentPowerNormalized = 0f;
 
         if (strikerGlow != null)
             strikerGlow.GetComponent<Light>().intensity = 0.4f;
@@ -163,18 +204,34 @@ public class StrikerController : MonoBehaviour
 
     private void UpdateAim()
     {
-        aimEndPosition = Input.mousePosition;
+        Vector3? pointer = GetPointerOnBoardPlane();
+        if (!pointer.HasValue) return;
 
-        Vector3 screenDirection = aimEndPosition - aimStartPosition;
-        float screenDistance = screenDirection.magnitude;
+        Vector3 toPointer = pointer.Value - transform.position;
+        toPointer.y = 0f;
 
-        shotPower = Mathf.Clamp01(screenDistance / maxDragDistance) * (maxForce - minForce) + minForce;
+        float distance = toPointer.magnitude;
+        if (distance < 0.001f) return;
 
-        shotDirection = mainCamera.ScreenToWorldPoint(new Vector3(aimEndPosition.x, 0, aimEndPosition.y)) -
-                       mainCamera.ScreenToWorldPoint(new Vector3(aimStartPosition.x, 0, aimStartPosition.y));
+        shotDirection = toPointer.normalized;
+        shotPower = Mathf.Clamp01(distance / maxDragDistance) * (maxForce - minForce) + minForce;
+        CurrentPowerNormalized = Mathf.Clamp01((shotPower - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
+    }
 
-        if (shotDirection != Vector3.zero)
-            shotDirection = shotDirection.normalized;
+    private Vector3? GetPointerOnBoardPlane()
+    {
+        if (mainCamera == null)
+            mainCamera = Camera.main;
+        if (mainCamera == null) return null;
+
+        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        Plane plane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
+
+        float enter;
+        if (plane.Raycast(ray, out enter))
+            return ray.GetPoint(enter);
+
+        return null;
     }
 
     private void UpdateAimVisual()
@@ -184,21 +241,23 @@ public class StrikerController : MonoBehaviour
             if (aimLine == null)
                 aimLine = CreateAimLine();
 
-            float powerPercent = shotPower / maxForce;
-            Color lineColor = Color.Lerp(new Color(0.2f, 0.8f, 0.2f), new Color(1f, 0.2f, 0.2f), powerPercent);
-            aimLine.GetComponent<MeshRenderer>().sharedMaterial.color = lineColor;
+            if (aimLine == null) return;
 
-            float lineLength = powerPercent * 0.8f;
-            Vector3 linePos = transform.position + new Vector3(shotDirection.x, 0.01f, shotDirection.z) * (lineLength / 2f + strikerRadius);
+            Color lineColor = Color.Lerp(new Color(0.2f, 0.8f, 0.2f), new Color(1f, 0.2f, 0.2f), CurrentPowerNormalized);
+            aimLine.GetComponent<MeshRenderer>().material.color = lineColor;
+
+            float lineLength = 0.15f + CurrentPowerNormalized * 0.9f;
+            Vector3 linePos = transform.position + shotDirection * (lineLength / 2f + strikerRadius);
+            linePos.y = transform.position.y + 0.006f;
+
             aimLine.transform.position = linePos;
-            aimLine.transform.localScale = new Vector3(0.008f, 0.003f, lineLength);
-            aimLine.transform.rotation = Quaternion.LookRotation(new Vector3(shotDirection.x, 0, shotDirection.z));
+            aimLine.transform.localScale = new Vector3(0.012f, 0.004f, lineLength);
+            aimLine.transform.rotation = Quaternion.LookRotation(shotDirection);
             aimLine.SetActive(true);
         }
-        else
+        else if (aimLine != null)
         {
-            if (aimLine != null)
-                aimLine.SetActive(false);
+            aimLine.SetActive(false);
         }
     }
 
@@ -207,34 +266,77 @@ public class StrikerController : MonoBehaviour
         GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
         line.name = "AimLine";
         line.transform.parent = null;
+
         Material lineMat = new Material(GetShader());
         lineMat.color = Color.green;
-        lineMat.SetFloat("_Metallic", 0f);
-        lineMat.SetFloat("_Glossiness", 0.3f);
         line.GetComponent<MeshRenderer>().sharedMaterial = lineMat;
-        Destroy(line.GetComponent<BoxCollider>());
+
+        RemoveCollider(line);
         return line;
+    }
+
+    private void CancelAim()
+    {
+        isAiming = false;
+        shotDirection = Vector3.zero;
+        shotPower = 0f;
+        CurrentPowerNormalized = 0f;
+
+        if (strikerGlow != null)
+            strikerGlow.GetComponent<Light>().intensity = 0.15f;
+        if (aimLine != null)
+            aimLine.SetActive(false);
     }
 
     private void StopAimingAndShoot()
     {
-        isAiming = false;
+        bool hasShot = shotDirection != Vector3.zero && CurrentPowerNormalized > 0.01f;
+        Vector3 direction = shotDirection;
+        float power = shotPower;
 
-        if (strikerGlow != null)
-            strikerGlow.GetComponent<Light>().intensity = 0.15f;
+        CancelAim();
 
-        if (aimLine != null)
-            aimLine.SetActive(false);
+        if (hasShot)
+            ShootTowards(direction, power);
+    }
 
-        if (shotDirection != Vector3.zero && shotPower > 0)
-        {
-            Vector3 worldDirection = mainCamera.transform.TransformDirection(shotDirection);
-            Vector3 flatDirection = new Vector3(worldDirection.x, 0, worldDirection.z).normalized;
-            Vector3 worldForce = flatDirection * shotPower;
+    /// <summary>
+    /// Shared shot entry point for both the human striker and the AI.
+    /// Applies the impulse and tells TurnManager that a shot has begun and ended
+    /// (TurnManager waits for physics before switching turns).
+    /// </summary>
+    public bool ShootTowards(Vector3 worldDirection, float power)
+    {
+        if (worldDirection.sqrMagnitude < 0.0001f || power <= 0f) return false;
+        if (TurnManager.Instance != null && TurnManager.Instance.IsShotInProgress()) return false;
 
-            Rigidbody.AddForce(worldForce, ForceMode.Impulse);
-            OnShotFired?.Invoke(new Vector2(flatDirection.x, flatDirection.z), worldForce.magnitude);
-        }
+        Vector3 direction = new Vector3(worldDirection.x, 0f, worldDirection.z).normalized;
+
+        if (Rigidbody == null)
+            Rigidbody = GetComponent<Rigidbody>();
+        if (Rigidbody == null) return false;
+
+        Rigidbody.isKinematic = false;
+        Rigidbody.linearVelocity = Vector3.zero;
+        Rigidbody.angularVelocity = Vector3.zero;
+        Rigidbody.AddForce(direction * power, ForceMode.Impulse);
+
+        CurrentPowerNormalized = Mathf.Clamp01((power - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
+
+        Debug.Log($"Shot fired - direction {direction}, power {power:F1}");
+        OnShotFired?.Invoke(new Vector2(direction.x, direction.z), power);
+
+        TurnManager.Instance?.BeginShot();
+        TurnManager.Instance?.EndShot();
+        return true;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.collider == null) return;
+
+        if (collision.collider.GetComponent<Coin>() != null || collision.collider.CompareTag("Coin"))
+            FoulDetector.Instance?.RegisterCoinTouched();
     }
 
     public bool IsWithinBaseline(Vector3 position)
@@ -243,11 +345,42 @@ public class StrikerController : MonoBehaviour
         return Mathf.Abs(position.x) <= halfBaselineWidth;
     }
 
+    public void ResetToBaseline(int player)
+    {
+        float z = player == 2 ? baselineZ : -baselineZ;
+        SetPosition(new Vector3(0f, strikerRestY, z));
+    }
+
+    public void PlaceOnBaseline(float x)
+    {
+        float half = Mathf.Max(0f, baselineWidth * 0.5f - strikerRadius);
+        x = Mathf.Clamp(x, -half, half);
+
+        Vector3 pos = transform.position;
+        pos.x = x;
+        pos.y = strikerRestY;
+        SetPosition(pos);
+    }
+
     public void SetPosition(Vector3 pos)
     {
         transform.position = pos;
-        Rigidbody.linearVelocity = Vector3.zero;
-        Rigidbody.angularVelocity = Vector3.zero;
+
+        if (Rigidbody != null)
+        {
+            Rigidbody.isKinematic = false;
+            Rigidbody.linearVelocity = Vector3.zero;
+            Rigidbody.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private void RemoveCollider(GameObject go)
+    {
+        if (go == null) return;
+        Collider collider = go.GetComponent<Collider>();
+        if (collider == null) return;
+        collider.enabled = false;
+        Destroy(collider);
     }
 
     private Shader GetShader()

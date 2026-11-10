@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class GameSceneManager : MonoBehaviour
 {
@@ -13,161 +14,130 @@ public class GameSceneManager : MonoBehaviour
     public CarromCameraController cameraController;
     public GameHUD gameHUD;
     public ResultsScreen resultsScreen;
-    
+
     [Header("UI References")]
     public Button pauseButton;
     public GameObject pauseMenu;
-    
+
+    private bool initialized = false;
+
+    private void Awake()
+    {
+        ResolveReferences();
+        EnsureScreenComponents();
+    }
+
     private void Start()
     {
-        InitializeGame();
-        SetupUI();
+        if (initialized) return;
+        initialized = true;
+        StartCoroutine(InitializeGameRoutine());
     }
-    
-    private void InitializeGame()
+
+    private void ResolveReferences()
+    {
+        if (gameManager == null)
+            gameManager = GameManager.Instance;
+        if (gameManager == null)
+            gameManager = FindObjectOfType<GameManager>(true);
+
+        if (strikerController == null)
+            strikerController = StrikerController.Instance;
+        if (strikerController == null)
+            strikerController = FindObjectOfType<StrikerController>(true);
+
+        if (coinSpawner == null)
+            coinSpawner = FindObjectOfType<CoinSpawner>(true);
+
+        if (turnManager == null)
+            turnManager = TurnManager.Instance;
+        if (turnManager == null)
+            turnManager = FindObjectOfType<TurnManager>(true);
+
+        if (scoreManager == null)
+            scoreManager = ScoreManager.Instance;
+        if (scoreManager == null)
+            scoreManager = FindObjectOfType<ScoreManager>(true);
+
+        if (boardController == null)
+            boardController = FindObjectOfType<BoardController>(true);
+
+        if (cameraController == null)
+            cameraController = FindObjectOfType<CarromCameraController>(true);
+
+        if (gameHUD == null)
+            gameHUD = FindObjectOfType<GameHUD>(true);
+
+        if (resultsScreen == null)
+            resultsScreen = FindObjectOfType<ResultsScreen>(true);
+    }
+
+    private void EnsureScreenComponents()
+    {
+        RuntimeUI.EnsureEventSystem();
+
+        if (gameHUD == null)
+            gameHUD = gameObject.AddComponent<GameHUD>();
+
+        if (resultsScreen == null)
+            resultsScreen = gameObject.AddComponent<ResultsScreen>();
+    }
+
+    private IEnumerator InitializeGameRoutine()
     {
         Debug.Log("Game scene initializing...");
-        
-        // Initialize GameManager
-        if (gameManager == null)
-        {
-            gameManager = FindObjectOfType<GameManager>();
-        }
+
         if (gameManager != null)
             gameManager.SetState(GameState.InGame);
-        
-        // Initialize striker
-        if (strikerController != null)
-        {
+
+        // The striker used to be disabled by TurnManager.Start() because the
+        // scene had player1 and player2 pointing at the same object.
+        if (strikerController != null && !strikerController.gameObject.activeSelf)
             strikerController.gameObject.SetActive(true);
-        }
-        
-        // Initialize coins
+
+        // Let BoardSetup build the board and CoinSpawner run its own Start().
+        yield return null;
+
         if (coinSpawner != null)
-        {
-            coinSpawner.gameObject.SetActive(true);
             coinSpawner.SpawnCoins();
-        }
-        
-        // Initialize turn manager
-        if (turnManager != null)
-        {
-            turnManager.gameObject.SetActive(true);
-        }
-        
-        // Initialize board
-        if (boardController != null)
-        {
-            boardController.gameObject.SetActive(true);
-        }
-        
-        // Initialize camera
-        if (cameraController != null)
-        {
-            cameraController.gameObject.SetActive(true);
-        }
-        
-        // Initialize UI
-        if (gameHUD != null)
-        {
-            gameHUD.gameObject.SetActive(true);
-        }
-        
-        // Setup event listeners
-        SetupEventListeners();
 
-        // Start the game AFTER everything is initialized so AI doesn't fire before coins spawn
-        if (turnManager != null)
-            turnManager.StartGame();
-    }
-    
-    private void SetupUI()
-    {
-        if (pauseButton != null)
-            pauseButton.onClick.AddListener(OnPauseClicked);
-
-        if (pauseMenu != null)
-            pauseMenu.SetActive(false);
-    }
-    
-    private void SetupEventListeners()
-    {
-        if (turnManager != null)
-        {
-            turnManager.OnTurnChanged += OnTurnChanged;
-            turnManager.OnScoreUpdated += OnScoreUpdated;
-        }
-        
         if (boardController != null)
-        {
-            boardController.CoinPocketed += OnCoinPocketed;
-        }
-        
-        if (strikerController != null)
-        {
-            strikerController.OnShotFired += OnShotFired;
-        }
-    }
-    
-    private void OnTurnChanged(int player)
-    {
-        Debug.Log($"Turn changed to Player {player}");
-        if (gameHUD != null)
-        {
-            gameHUD.UpdateHUD();
-        }
-    }
-    
-    private void OnScoreUpdated(int player, int score)
-    {
-        Debug.Log($"Score updated for Player {player}: {score}");
-        if (gameHUD != null)
-        {
-            gameHUD.UpdateHUD();
-        }
-    }
-    
-    private void OnCoinPocketed(CoinType coinType)
-    {
-        Debug.Log($"Coin {coinType} pocketed in game");
+            boardController.SetupPockets();
+
+        // Wire the rule systems together even if the Inspector is empty.
+        if (turnManager != null)
+            turnManager.aiControlsPlayer2 = PlayerPrefs.GetInt("carrom_local_multiplayer", 0) == 0;
+
         if (scoreManager != null)
         {
-            int currentPlayer = turnManager.GetCurrentPlayer();
-            scoreManager.AddCoins(currentPlayer, coinType, 1);
+            if (scoreManager.turnManager == null)
+                scoreManager.turnManager = turnManager;
+            if (scoreManager.gameHUD == null)
+                scoreManager.gameHUD = gameHUD;
         }
-    }
-    
-    private void OnShotFired(Vector2 direction, float power)
-    {
-        Debug.Log($"Shot fired - Direction: {direction}, Power: {power:F1}");
+
+        if (gameHUD != null)
+        {
+            if (gameHUD.turnManager == null)
+                gameHUD.turnManager = turnManager;
+            if (gameHUD.scoreManager == null)
+                gameHUD.scoreManager = scoreManager;
+        }
+
+        if (resultsScreen != null && resultsScreen.scoreManager == null)
+            resultsScreen.scoreManager = scoreManager;
+
+        // One more fixed step so the coins settle onto the surface before play.
+        yield return new WaitForFixedUpdate();
+
         if (turnManager != null)
-        {
-            turnManager.StartShot();
-        }
-    }
-    
-    private void OnPauseClicked()
-    {
-        pauseMenu.SetActive(!pauseMenu.activeSelf);
-    }
-    
-    private void OnDestroy()
-    {
-        // Cleanup event listeners
-        if (turnManager != null)
-        {
-            turnManager.OnTurnChanged -= OnTurnChanged;
-            turnManager.OnScoreUpdated -= OnScoreUpdated;
-        }
-        
-        if (boardController != null)
-        {
-            boardController.CoinPocketed -= OnCoinPocketed;
-        }
-        
-        if (strikerController != null)
-        {
-            strikerController.OnShotFired -= OnShotFired;
-        }
+            turnManager.StartGame();
+        else
+            Debug.LogError("GameSceneManager: no TurnManager found - the game cannot start");
+
+        if (gameHUD != null)
+            gameHUD.Refresh();
+
+        Debug.Log("Game scene initialized");
     }
 }

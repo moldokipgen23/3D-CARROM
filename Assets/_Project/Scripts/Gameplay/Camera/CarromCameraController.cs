@@ -3,7 +3,7 @@ using UnityEngine;
 public class CarromCameraController : MonoBehaviour
 {
     [Header("Camera Settings")]
-    public float cameraDistance = 5f;
+    public float cameraDistance = 7.2f;
     public float cameraHeight = 2f;
     public float cameraAngle = 55f;
     public float smoothTime = 0.3f;
@@ -15,74 +15,73 @@ public class CarromCameraController : MonoBehaviour
     public LayerMask collisionLayer;
     public float collisionOffset = 0.1f;
 
-    private Vector3 currentVelocity;
-    private Vector3 targetPosition;
-    private bool isInitialized = false;
+    [Header("Framing")]
+    public Vector3 boardCenter = Vector3.zero;
+    public float fieldOfView = 58f;
+
+    private Camera cam;
+    private bool initialized = false;
 
     private void Start()
     {
-        InitializeCamera();
+        SetupCamera();
+    }
+
+    private void SetupCamera()
+    {
+        cam = GetComponent<Camera>();
+        if (cam == null)
+            cam = Camera.main;
+        if (cam == null)
+        {
+            Debug.LogWarning("CarromCameraController: no camera found");
+            return;
+        }
+
+        // Null-safe lookup - the old code called .transform on a null result.
+        if (strikerTarget == null)
+        {
+            GameObject striker = GameObject.FindWithTag("Striker");
+            if (striker != null)
+                strikerTarget = striker.transform;
+        }
+
+        float angleRad = cameraAngle * Mathf.Deg2Rad;
+        float distance = Mathf.Max(4f, cameraDistance);
+
+        // Orbit direction: straight behind the board, tilted down by cameraAngle.
+        Vector3 direction = new Vector3(0f, Mathf.Sin(angleRad), -Mathf.Cos(angleRad));
+        Vector3 target = boardCenter + Vector3.up * 0.15f;
+
+        cam.transform.position = boardCenter + direction * distance;
+        cam.transform.LookAt(target);
+        cam.fieldOfView = fieldOfView;
+        cam.nearClipPlane = 0.1f;
+        cam.farClipPlane = 100f;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.07f, 0.05f, 0.035f, 1f);
+        cam.allowHDR = true;
+        cam.allowMSAA = true;
+
+        if (GetComponent<AudioListener>() == null)
+        {
+            if (FindObjectOfType<AudioListener>() == null)
+                gameObject.AddComponent<AudioListener>();
+        }
+
+        initialized = true;
+    }
+
+    public void Recenter()
+    {
+        SetupCamera();
     }
 
     private void LateUpdate()
     {
-        if (!isInitialized) return;
-
-        UpdateTargetPosition();
-        UpdateCameraPosition();
-    }
-
-    private void InitializeCamera()
-    {
-        if (strikerTarget == null)
-        {
-            strikerTarget = GameObject.FindWithTag("Striker").transform;
-        }
-
-        if (strikerTarget != null)
-        {
-            isInitialized = true;
-            Debug.Log("CarromCameraController initialized");
-        }
-        else
-        {
-            Debug.LogError("Striker target not found for camera initialization");
-        }
-    }
-
-    private void UpdateTargetPosition()
-    {
-        if (strikerTarget != null)
-        {
-            targetPosition = strikerTarget.position + Vector3.up * cameraHeight;
-        }
-    }
-
-    private void UpdateCameraPosition()
-    {
-        Vector3 desiredPosition = CalculateDesiredPosition();
-        transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, smoothTime);
-        transform.LookAt(strikerTarget.position + Vector3.up * 0.5f);
-    }
-
-    private Vector3 CalculateDesiredPosition()
-    {
-        Vector3 desiredPosition = strikerTarget.position - transform.forward * cameraDistance;
-        desiredPosition.y = strikerTarget.position.y + cameraHeight;
-
-        RaycastHit hit;
-        if (Physics.Raycast(strikerTarget.position, transform.forward, out hit, cameraDistance, collisionLayer))
-        {
-            desiredPosition = hit.point + transform.forward * collisionOffset;
-            desiredPosition.y = strikerTarget.position.y + cameraHeight;
-        }
-
-        return desiredPosition;
-    }
-
-    public void SetCameraAngle(float angle)
-    {
-        cameraAngle = angle;
-        Debug.Log($"Camera angle set to: {angle} degrees");
+        // The camera is intentionally fixed. Following the striker caused the
+        // board to drift and made aiming impossible on a phone screen.
+        if (!initialized)
+            SetupCamera();
     }
 }

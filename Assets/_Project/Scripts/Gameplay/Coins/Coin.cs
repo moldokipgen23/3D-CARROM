@@ -13,8 +13,11 @@ public class Coin : MonoBehaviour
     [Header("Visual Settings")]
     public MeshRenderer MeshRenderer;
 
+    private Vector3 spawnPosition;
+
     private void Awake()
     {
+        spawnPosition = transform.position;
         SetupPhysics();
         SetupVisuals();
     }
@@ -22,81 +25,95 @@ public class Coin : MonoBehaviour
     private void SetupPhysics()
     {
         if (Rigidbody == null)
-        {
+            Rigidbody = GetComponent<Rigidbody>();
+
+        if (Rigidbody == null)
             Rigidbody = gameObject.AddComponent<Rigidbody>();
-        }
 
         Rigidbody.useGravity = true;
-        Rigidbody.constraints = RigidbodyConstraints.FreezePositionY;
+        Rigidbody.constraints = RigidbodyConstraints.FreezePositionY |
+                                RigidbodyConstraints.FreezeRotationX |
+                                RigidbodyConstraints.FreezeRotationZ;
         Rigidbody.mass = 5f;
+        Rigidbody.linearDamping = 0.3f;
+        Rigidbody.angularDamping = 0.8f;
 
         if (PhysicsMaterial == null)
         {
             PhysicsMaterial = new PhysicsMaterial();
-            PhysicsMaterial.dynamicFriction = 0.3f;
-            PhysicsMaterial.staticFriction = 0.3f;
+            PhysicsMaterial.dynamicFriction = 0.25f;
+            PhysicsMaterial.staticFriction = 0.25f;
             PhysicsMaterial.bounciness = 0.1f;
             PhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
             PhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
         }
 
         Collider col = GetComponent<Collider>();
-        if (col != null)
-            col.sharedMaterial = PhysicsMaterial;
+        if (col == null)
+        {
+            BoxCollider box = gameObject.AddComponent<BoxCollider>();
+            box.size = new Vector3(0.076f, 0.012f, 0.076f);
+            col = box;
+        }
+
+        col.sharedMaterial = PhysicsMaterial;
     }
 
     private void SetupVisuals()
     {
         if (MeshRenderer == null)
-        {
             MeshRenderer = GetComponent<MeshRenderer>();
-        }
 
-        UpdateVisuals();
-    }
-
-    private void UpdateVisuals()
-    {
-        Color coinColor = Type == CoinType.White ? Color.white :
-                         Type == CoinType.Black ? Color.black :
-                         Color.red;
-
-        if (MeshRenderer != null)
-        {
-            MeshRenderer.material.color = coinColor;
-            MeshRenderer.material.SetFloat("_Glossiness", 0.6f);
-        }
+        // Coins are built from child primitives; those already have their own
+        // materials, so nothing is recoloured here.
     }
 
     public void Pocket()
     {
-        if (!IsPocketed)
+        if (IsPocketed) return;
+
+        IsPocketed = true;
+
+        if (Rigidbody != null)
         {
-            IsPocketed = true;
             Rigidbody.linearVelocity = Vector3.zero;
             Rigidbody.angularVelocity = Vector3.zero;
             Rigidbody.isKinematic = true;
-            Transform board = transform.root.Find("Board");
-            if (board != null)
-            {
-                Transform pocket = board.Find("Pocket0");
-                if (pocket != null)
-                    transform.parent = pocket;
-            }
-            gameObject.SetActive(false);
-            Debug.Log($"Coin {Type} pocketed");
         }
+
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.enabled = false;
+
+        gameObject.SetActive(false);
+        Debug.Log($"Coin {Type} pocketed");
     }
 
     public void ResetCoin()
     {
         IsPocketed = false;
-        Rigidbody.isKinematic = false;
-        Rigidbody.linearVelocity = Vector3.zero;
-        Rigidbody.angularVelocity = Vector3.zero;
-        transform.parent = null;
-        transform.position = Vector3.zero;
+
+        gameObject.SetActive(true);
+
+        if (Rigidbody != null)
+        {
+            Rigidbody.isKinematic = false;
+            Rigidbody.linearVelocity = Vector3.zero;
+            Rigidbody.angularVelocity = Vector3.zero;
+        }
+
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.enabled = true;
+
+        transform.position = spawnPosition;
         transform.rotation = Quaternion.identity;
+
         Debug.Log($"Coin {Type} reset");
+    }
+
+    public void SetSpawnPoint(Vector3 position)
+    {
+        spawnPosition = position;
     }
 }

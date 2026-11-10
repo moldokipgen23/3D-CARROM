@@ -3,252 +3,213 @@ using System.Collections;
 
 public class AIPlayer : MonoBehaviour
 {
+    public static AIPlayer Instance { get; private set; }
+
+    public const int PlayerIndex = 2;
+
     [Header("AI Settings")]
     public AIDifficulty difficulty = AIDifficulty.Medium;
-    public float thinkingDelay = 1.0f; // 0.5-1.5s thinking delay
-    
+    public float thinkingDelay = 1.0f;
+
     [Header("References")]
     public StrikerController strikerController;
     public TurnManager turnManager;
     public ScoreManager scoreManager;
-    
-    private Vector2 targetShot;
-    private float targetPower;
+
     private bool isThinking = false;
-    private bool isReadyToShoot = false;
-    
-    private void Start()
+
+    private void Awake()
     {
+        Instance = this;
         InitializeReferences();
     }
-    
+
     private void InitializeReferences()
     {
         if (strikerController == null)
-        {
             strikerController = GetComponent<StrikerController>();
-        }
+        if (strikerController == null)
+            strikerController = FindObjectOfType<StrikerController>(true);
+
         if (turnManager == null)
-        {
             turnManager = FindObjectOfType<TurnManager>();
-        }
         if (scoreManager == null)
-        {
             scoreManager = FindObjectOfType<ScoreManager>();
-        }
-        
-        if (strikerController != null)
-        {
-            strikerController.OnShotFired += OnShotCompleted;
-        }
-        if (turnManager != null)
-        {
-            turnManager.OnTurnChanged += OnTurnChanged;
-        }
     }
-    
-    private void Update()
+
+    /// <summary>Called by TurnManager when it becomes the AI's turn.</summary>
+    public void TakeTurn()
     {
-        if (turnManager != null && turnManager.GetCurrentPlayer() == 2 && isReadyToShoot && !isThinking)
-        {
-            StartCoroutine(AITurn());
-        }
+        if (isThinking) return;
+        if (turnManager == null) turnManager = FindObjectOfType<TurnManager>();
+        if (turnManager == null) return;
+        if (turnManager.GetCurrentPlayer() != PlayerIndex) return;
+        if (scoreManager != null && scoreManager.IsGameEnded) return;
+
+        StartCoroutine(AITurnCoroutine());
     }
-    
-    private IEnumerator AITurn()
+
+    private IEnumerator AITurnCoroutine()
     {
         isThinking = true;
-        isReadyToShoot = false;
-        
-        Debug.Log($"AI Player thinking... (Difficulty: {difficulty})");
-        
-        yield return new WaitForSeconds(thinkingDelay);
-        
-        CalculateAndExecuteShot();
-        isThinking = false;
-    }
-    
-    private void CalculateAndExecuteShot()
-    {
-        AINoiseParameters noiseParams = AIDifficultySettings.GetNoiseParameters(difficulty);
-        
-        Vector2 shot = CalculateBestShot(noiseParams);
-        
-        if (shot != Vector2.zero)
+
+        float delay = Mathf.Max(0.2f, thinkingDelay) * UnityEngine.Random.Range(0.6f, 1.4f);
+        yield return new WaitForSeconds(delay);
+
+        // Safety: never fire while the previous shot is still being resolved.
+        float waited = 0f;
+        while (turnManager != null && turnManager.IsShotInProgress() && waited < 2f)
         {
-            ExecuteShot(shot.x, shot.y);
+            waited += Time.deltaTime;
+            yield return null;
+        }
+
+        bool canShoot = turnManager != null
+                        && turnManager.GetCurrentPlayer() == PlayerIndex
+                        && (scoreManager == null || !scoreManager.IsGameEnded);
+
+        if (!canShoot || strikerController == null)
+        {
+            isThinking = false;
+            yield break;
+        }
+
+        Vector3 direction;
+        float power;
+
+        if (CalculateBestShot(out direction, out power))
+        {
+            if (!strikerController.ShootTowards(direction, power))
+            {
+                Debug.LogWarning("AIPlayer: shot was rejected, ending turn to avoid a softlock");
+                turnManager?.EndShot();
+            }
         }
         else
         {
-            Debug.LogWarning("AI could not find a valid shot");
-            turnManager?.EndShot();
+            Debug.LogWarning("AIPlayer: no valid shot found, aiming at the centre");
+            strikerController.ResetToBaseline(PlayerIndex);
+
+            Vector3 fallback = Vector3.zero - strikerController.transform.position;
+            fallback.y = 0f;
+
+            if (fallback.sqrMagnitude > 0.0001f)
+                strikerController.ShootTowards(fallback.normalized, 28f);
+            else
+                turnManager?.EndShot();
         }
+
+        isThinking = false;
     }
-    
-    private Vector2 CalculateBestShot(AINoiseParameters noiseParams)
+
+    /// <summary>
+    /// Ghost-ball aiming: find a coin/pocket pair where the striker can hit the
+    /// coin on the correct side so that the coin travels into the pocket.
+    /// </summary>
+    private bool CalculateBestShot(out Vector3 direction, out float power)
     {
-        GameObject[] coins = GameObject.FindGameObjectsWithTag("Coin");
-        Vector3 strikerPosition = strikerController.transform.position;
-        
-        Vector2 bestShot = Vector2.zero;
-        float bestScore = float.MaxValue;
-        
-        int coinsEvaluated = 0;
-        int maxCoinsToEvaluate = noiseParams.candidateTargetCoins;
-        
-        foreach (GameObject coin in coins)
+        direction = Vector3.zero;
+        power = 8f;
+
+        if (strikerController == null) return false;
+
+        PocketTrigger[] pockets = FindObjectsOfType<PocketTrigger>();
+        Coin[] coins = FindObjectsOfType<Coin>();
+
+        if (pockets.Length == 0 || coins.Length == 0) return false;
+
+        bool hasOwnCoin = false;
+        for (int i = 0; i < coins.Length; i++)
         {
-            Coin coinComponent = coin.GetComponent<Coin>();
-            if (coinComponent == null || coinComponent.IsPocketed)
+            if (coins[i] != null && !coins[i].IsPocketed
+                && coins[i].gameObject.activeInHierarchy
+                && coins[i].Type == CoinType.Black)
             {
-                continue;
-            }
-            
-            coinsEvaluated++;
-            if (coinsEvaluated > maxCoinsToEvaluate)
-            {
+                hasOwnCoin = true;
                 break;
             }
-            
-            Vector2 shot = CalculateShotToPocket(coinComponent.Type, coin.transform.position, noiseParams);
-            
-            if (shot != Vector2.zero)
+        }
+
+        Vector3 strikerPos = strikerController.transform.position;
+        float bestScore = float.MaxValue;
+        Vector3 bestGhost = Vector3.zero;
+        bool found = false;
+
+        for (int c = 0; c < coins.Length; c++)
+        {
+            Coin coin = coins[c];
+            if (coin == null || coin.IsPocketed || !coin.gameObject.activeInHierarchy) continue;
+
+            if (hasOwnCoin && coin.Type != CoinType.Black) continue;
+            if (!hasOwnCoin && coin.Type != CoinType.Queen) continue;
+
+            Vector3 coinPos = coin.transform.position;
+            coinPos.y = 0f;
+
+            for (int p = 0; p < pockets.Length; p++)
             {
-                float score = CalculateShotScore(shot, coin.transform.position);
+                PocketTrigger pocket = pockets[p];
+                if (pocket == null) continue;
+
+                Vector3 pocketPos = pocket.transform.position;
+                pocketPos.y = 0f;
+
+                Vector3 toPocket = pocketPos - coinPos;
+                float pocketDistance = toPocket.magnitude;
+                if (pocketDistance < 0.06f) continue;
+
+                Vector3 pocketDirection = toPocket / pocketDistance;
+                Vector3 ghost = coinPos - pocketDirection * (strikerController.strikerRadius + 0.04f);
+
+                Vector3 toGhost = ghost - strikerPos;
+                toGhost.y = 0f;
+                float ghostDistance = toGhost.magnitude;
+                if (ghostDistance < 0.08f) continue;
+
+                Vector3 shootDirection = toGhost / ghostDistance;
+                float cutAngle = Vector3.Angle(shootDirection, pocketDirection);
+                if (cutAngle > 70f) continue;
+
+                float score = cutAngle * 1.5f + ghostDistance * 0.4f + pocketDistance * 0.6f;
                 if (score < bestScore)
                 {
                     bestScore = score;
-                    bestShot = shot;
+                    bestGhost = ghost;
+                    found = true;
                 }
             }
         }
-        
-        if (bestShot == Vector2.zero)
-        {
-            Debug.LogWarning("AI found no valid shots");
-        }
-        
-        return bestShot;
-    }
-    
-    private Vector2 CalculateShotToPocket(CoinType coinType, Vector3 coinPosition, AINoiseParameters noiseParams)
-    {
-        PocketTrigger[] pockets = FindObjectsOfType<PocketTrigger>();
-        Vector3 strikerPosition = strikerController.transform.position;
-        
-        Vector2 bestShot = Vector2.zero;
-        float bestScore = float.MaxValue;
-        
-        foreach (PocketTrigger pocket in pockets)
-        {
-            Vector3 pocketPosition = pocket.transform.position;
-            
-            Vector2 shot = CalculateDirectShot(strikerPosition, coinPosition, pocketPosition);
-            if (shot == Vector2.zero)
-            {
-                continue;
-            }
-            
-            shot = ApplyNoise(shot, noiseParams);
-            
-            float score = CalculateShotScore(shot, coinPosition);
-            if (score < bestScore)
-            {
-                bestScore = score;
-                bestShot = shot;
-            }
-        }
-        
-        return bestShot;
-    }
-    
-    private Vector2 CalculateDirectShot(Vector3 strikerPos, Vector3 targetPos, Vector3 pocketPos)
-    {
-        Vector3 toTarget = targetPos - strikerPos;
-        Vector3 toPocket = pocketPos - strikerPos;
-        
-        float angleToTarget = Mathf.Atan2(toTarget.z, toTarget.x) * Mathf.Rad2Deg;
-        float angleToPocket = Mathf.Atan2(toPocket.z, toPocket.x) * Mathf.Rad2Deg;
-        
-        float distanceToTarget = toTarget.magnitude;
-        float distanceToPocket = toPocket.magnitude;
-        
-        float idealPower = Mathf.Clamp(distanceToTarget * 1.5f, 2f, 15f);
-        
-        float angleDifference = Mathf.Abs(Mathf.DeltaAngle(angleToTarget, angleToPocket));
-        if (angleDifference > 90f)
-        {
-            return Vector2.zero;
-        }
-        
-        return new Vector2(angleToTarget, idealPower);
-    }
-    
-    private Vector2 ApplyNoise(Vector2 shot, AINoiseParameters noiseParams)
-    {
-        float angleNoise = UnityEngine.Random.Range(-noiseParams.angleNoise, noiseParams.angleNoise);
-        float powerNoise = UnityEngine.Random.Range(-noiseParams.powerNoisePercent, noiseParams.powerNoisePercent);
-        
-        float noisyAngle = shot.x + angleNoise;
-        float noisyPower = shot.y * (1f + powerNoise / 100f);
-        
-        noisyPower = Mathf.Clamp(noisyPower, 2f, 15f);
-        
-        return new Vector2(noisyAngle, noisyPower);
-    }
-    
-    private float CalculateShotScore(Vector2 shot, Vector3 targetPosition)
-    {
-        float angleScore = 0f;
-        float powerScore = 0f;
-        
-        Vector3 strikerPosition = strikerController.transform.position;
-        Vector3 shotDirection = new Vector3(Mathf.Sin(shot.x * Mathf.Deg2Rad), 0, Mathf.Cos(shot.x * Mathf.Deg2Rad));
-        
-        Vector3 predictedTargetPosition = strikerPosition + shotDirection * shot.y;
-        Vector3 toTarget = targetPosition - predictedTargetPosition;
-        float distanceToTarget = toTarget.magnitude;
-        
-        angleScore = distanceToTarget;
-        powerScore = Mathf.Abs(shot.y - 8f);
-        
-        return angleScore + powerScore * 0.5f;
-    }
-    
-    private void ExecuteShot(float angle, float power)
-    {
-        Vector3 worldDirection = new Vector3(Mathf.Sin(angle * Mathf.Deg2Rad), 0, Mathf.Cos(angle * Mathf.Deg2Rad));
 
-        Debug.Log($"AI executing shot - Angle: {angle:F1}°, Power: {power:F1}");
+        if (!found) return false;
 
-        ApplyForceToStriker(worldDirection, power);
-        turnManager?.EndShot();
-        isReadyToShoot = false;
-    }
-    
-    private void ApplyForceToStriker(Vector3 direction, float power)
-    {
-        if (strikerController != null && strikerController.Rigidbody != null)
-        {
-            Vector3 force = direction * power;
-            strikerController.Rigidbody.AddForce(force, ForceMode.Impulse);
-        }
-    }
-    
-    private void OnShotCompleted(Vector2 direction, float power)
-    {
-        // Called for human shots via StrikerController.OnShotFired (AI bypasses that event)
-        Debug.Log($"Shot completed - Direction: {direction}, Power: {power:F1}");
-        turnManager?.EndShot();
-        isReadyToShoot = false;
-    }
-    
-    private void OnTurnChanged(int currentPlayer)
-    {
-        if (currentPlayer == 2)
-        {
-            isReadyToShoot = true;
-        }
+        // Move the striker along the baseline so it lines up with the ghost ball.
+        strikerController.ResetToBaseline(PlayerIndex);
+        strikerController.PlaceOnBaseline(bestGhost.x);
+
+        strikerPos = strikerController.transform.position;
+        Vector3 finalDirection = bestGhost - strikerPos;
+        finalDirection.y = 0f;
+
+        if (finalDirection.sqrMagnitude < 0.0001f) return false;
+
+        float distanceToGhost = finalDirection.magnitude;
+        finalDirection.Normalize();
+
+        float rawPower = Mathf.Clamp(distanceToGhost * 9f + 10f, 14f, 32f);
+
+        AINoiseParameters noise = AIDifficultySettings.GetNoiseParameters(difficulty);
+        float angleNoise = UnityEngine.Random.Range(-noise.angleNoise, noise.angleNoise);
+        float powerNoise = UnityEngine.Random.Range(-noise.powerNoisePercent, noise.powerNoisePercent);
+
+        direction = Quaternion.Euler(0f, angleNoise, 0f) * finalDirection;
+        direction.Normalize();
+
+        power = Mathf.Clamp(
+            rawPower * (1f + powerNoise / 100f),
+            strikerController.minForce,
+            strikerController.maxForce);
+
+        return true;
     }
 
     public void SetDifficulty(AIDifficulty newDifficulty)
