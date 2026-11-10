@@ -46,3 +46,7 @@ Assets/_Project/Art/Textures/*.tga
 Assets/_Project/Audio/*.wav
 Assets/_Project/Audio/*.mp3
 Assets/_Project/Audio/*.ogg
+
+# Unity local temp and build logs
+.utmp/
+unity-*.log
