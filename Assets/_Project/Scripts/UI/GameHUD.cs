@@ -369,7 +369,14 @@ public class GameHUD : MonoBehaviour
             turnIndicator.color = current == 1 ? Color.white : new Color(0.92f, 0.92f, 0.92f, 1f);
 
         if (hintText != null)
-            hintText.gameObject.SetActive(!aiTurn && (scoreManager == null || !scoreManager.IsGameEnded));
+        {
+            bool over = scoreManager != null && scoreManager.IsGameEnded;
+            hintText.gameObject.SetActive(!over);
+            if (!over)
+                hintText.text = aiTurn
+                    ? "Opponent is lining up a shot..."
+                    : "Drag from the striker to aim  ·  release to shoot";
+        }
 
         lastP1Score = p1Score;
         lastP2Score = p2Score;
