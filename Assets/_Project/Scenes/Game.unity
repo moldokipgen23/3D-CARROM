@@ -367,8 +367,8 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   strikerMass: 8
   maxDragDistance: 1
-  minForce: 6
-  maxForce: 35
+  minForce: 8
+  maxForce: 55
   baselineWidth: 1.5
   strikerRadius: 0.045
   baselineZ: 1.1

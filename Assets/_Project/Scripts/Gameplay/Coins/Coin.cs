@@ -34,18 +34,23 @@ public class Coin : MonoBehaviour
         Rigidbody.constraints = RigidbodyConstraints.FreezePositionY |
                                 RigidbodyConstraints.FreezeRotationX |
                                 RigidbodyConstraints.FreezeRotationZ;
-        Rigidbody.mass = 5f;
-        Rigidbody.linearDamping = 0.3f;
-        Rigidbody.angularDamping = 0.8f;
+
+        // A real carrom coin weighs ~5 g against a ~15 g striker, so the
+        // striker must stay heavier than the coins to transfer momentum.
+        // Coins are much lighter than the striker so a hard shot scatters the pile.
+        Rigidbody.mass = 1f;
+        Rigidbody.linearDamping = 0.12f;
+        Rigidbody.angularDamping = 0.5f;
 
         if (PhysicsMaterial == null)
         {
             PhysicsMaterial = new PhysicsMaterial();
-            PhysicsMaterial.dynamicFriction = 0.25f;
-            PhysicsMaterial.staticFriction = 0.25f;
-            PhysicsMaterial.bounciness = 0.1f;
+            // Polished carrom board: low sliding friction, lively rebound.
+            PhysicsMaterial.dynamicFriction = 0.08f;
+            PhysicsMaterial.staticFriction = 0.08f;
+            PhysicsMaterial.bounciness = 0.45f;
             PhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
-            PhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
+            PhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         }
 
         Collider col = GetComponent<Collider>();

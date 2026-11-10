@@ -87,16 +87,29 @@ public class AIPlayer : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("AIPlayer: no valid shot found, aiming at the centre");
-            strikerController.ResetToBaseline(PlayerIndex);
-
-            Vector3 fallback = Vector3.zero - strikerController.transform.position;
-            fallback.y = 0f;
-
-            if (fallback.sqrMagnitude > 0.0001f)
-                strikerController.ShootTowards(fallback.normalized, 28f);
+            // No pocket shot found: hit the nearest coin instead of firing at
+            // an empty centre spot (which used to register as a foul).
+            Vector3 fallbackDirection;
+            float fallbackPower;
+            if (TryCalculateFallbackShot(out fallbackDirection, out fallbackPower))
+            {
+                // TryCalculateFallbackShot has already lined the striker up with
+                // the target coin; do not reset it again or the aim is lost.
+                strikerController.ShootTowards(fallbackDirection, fallbackPower);
+            }
             else
-                turnManager?.EndShot();
+            {
+                Debug.LogWarning("AIPlayer: no valid shot found, aiming at the centre");
+                strikerController.ResetToBaseline(PlayerIndex);
+
+                Vector3 fallback = Vector3.zero - strikerController.transform.position;
+                fallback.y = 0f;
+
+                if (fallback.sqrMagnitude > 0.0001f)
+                    strikerController.ShootTowards(fallback.normalized, 28f);
+                else
+                    turnManager?.EndShot();
+            }
         }
 
         isThinking = false;
@@ -161,12 +174,22 @@ public class AIPlayer : MonoBehaviour
                 Vector3 pocketDirection = toPocket / pocketDistance;
                 Vector3 ghost = coinPos - pocketDirection * (strikerController.strikerRadius + 0.04f);
 
+                // The ghost target must be inside the playing surface, otherwise
+                // the striker would be aimed at (or through) a wall.
+                if (Mathf.Abs(ghost.x) > 1.35f || Mathf.Abs(ghost.z) > 1.35f) continue;
+
                 Vector3 toGhost = ghost - strikerPos;
                 toGhost.y = 0f;
                 float ghostDistance = toGhost.magnitude;
                 if (ghostDistance < 0.08f) continue;
 
                 Vector3 shootDirection = toGhost / ghostDistance;
+
+                // Player 2 shoots from the +Z baseline towards -Z. Reject any
+                // target that would send the striker away from the board.
+                Vector3 intoBoard = new Vector3(0f, 0f, -1f);
+                if (Vector3.Dot(shootDirection, intoBoard) < 0.2f) continue;
+
                 float cutAngle = Vector3.Angle(shootDirection, pocketDirection);
                 if (cutAngle > 70f) continue;
 
@@ -195,7 +218,7 @@ public class AIPlayer : MonoBehaviour
         float distanceToGhost = finalDirection.magnitude;
         finalDirection.Normalize();
 
-        float rawPower = Mathf.Clamp(distanceToGhost * 9f + 10f, 14f, 32f);
+        float rawPower = Mathf.Clamp(distanceToGhost * 12f + 16f, 24f, 46f);
 
         AINoiseParameters noise = AIDifficultySettings.GetNoiseParameters(difficulty);
         float angleNoise = UnityEngine.Random.Range(-noise.angleNoise, noise.angleNoise);
@@ -209,6 +232,63 @@ public class AIPlayer : MonoBehaviour
             strikerController.minForce,
             strikerController.maxForce);
 
+        return true;
+    }
+
+    /// <summary>
+    /// Fallback when no pocket is reachable: line up on the baseline and hit the
+    /// nearest coin, preferring the AI's own coins.
+    /// </summary>
+    private bool TryCalculateFallbackShot(out Vector3 direction, out float power)
+    {
+        direction = Vector3.zero;
+        power = 30f;
+
+        if (strikerController == null) return false;
+
+        Coin[] coins = FindObjectsOfType<Coin>();
+        Coin best = null;
+        float bestScore = float.MaxValue;
+        Vector3 intoBoard = new Vector3(0f, 0f, -1f);
+
+        for (int i = 0; i < coins.Length; i++)
+        {
+            Coin coin = coins[i];
+            if (coin == null || coin.IsPocketed || !coin.gameObject.activeInHierarchy) continue;
+
+            Vector3 toCoinCheck = coin.transform.position - strikerController.transform.position;
+            toCoinCheck.y = 0f;
+
+            // Ignore coins behind the AI (never shoot back into its own wall).
+            if (Vector3.Dot(toCoinCheck.normalized, intoBoard) < 0.1f) continue;
+
+            float typeWeight = coin.Type == CoinType.Black ? 1f
+                             : coin.Type == CoinType.Queen ? 1.2f
+                             : 1.6f;
+
+            float distance = toCoinCheck.magnitude * typeWeight;
+
+            if (distance < bestScore)
+            {
+                bestScore = distance;
+                best = coin;
+            }
+        }
+
+        if (best == null) return false;
+
+        strikerController.ResetToBaseline(PlayerIndex);
+        strikerController.PlaceOnBaseline(best.transform.position.x);
+
+        Vector3 toCoin = best.transform.position - strikerController.transform.position;
+        toCoin.y = 0f;
+
+        float distanceToCoin = toCoin.magnitude;
+        if (distanceToCoin < 0.05f) return false;
+
+        direction = toCoin / distanceToCoin;
+        // Hitting a coin square needs less force than a cut shot.
+        power = Mathf.Clamp(distanceToCoin * 10f + 16f, 24f, 44f);
         return true;
     }
 

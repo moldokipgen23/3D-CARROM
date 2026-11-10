@@ -8,8 +8,8 @@ public class StrikerController : MonoBehaviour
     [Header("Striker Settings")]
     public float strikerMass = 8f;
     public float maxDragDistance = 1.0f;
-    public float minForce = 6f;
-    public float maxForce = 35f;
+    public float minForce = 8f;
+    public float maxForce = 55f;
     public float baselineWidth = 1.5f;
     public float strikerRadius = 0.045f;
 
@@ -118,17 +118,17 @@ public class StrikerController : MonoBehaviour
                                 RigidbodyConstraints.FreezeRotationZ;
         Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         Rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        Rigidbody.linearDamping = 0.3f;
+        Rigidbody.linearDamping = 0.1f;
         Rigidbody.angularDamping = 0.8f;
 
         if (strikerPhysicsMaterial == null)
         {
             strikerPhysicsMaterial = new PhysicsMaterial();
-            strikerPhysicsMaterial.dynamicFriction = 0.2f;
-            strikerPhysicsMaterial.staticFriction = 0.2f;
-            strikerPhysicsMaterial.bounciness = 0.15f;
+            strikerPhysicsMaterial.dynamicFriction = 0.08f;
+            strikerPhysicsMaterial.staticFriction = 0.08f;
+            strikerPhysicsMaterial.bounciness = 0.45f;
             strikerPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
-            strikerPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
+            strikerPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         }
 
         StrikerCollider = GetComponent<Collider>();
@@ -364,6 +364,10 @@ public class StrikerController : MonoBehaviour
 
     public void SetPosition(Vector3 pos)
     {
+        // Coins scattered onto the baseline would overlap the striker. Nudge
+        // them clear so the next shot starts from a clean, stable position.
+        ClearCoinsAt(pos);
+
         transform.position = pos;
 
         if (Rigidbody != null)
@@ -371,6 +375,39 @@ public class StrikerController : MonoBehaviour
             Rigidbody.isKinematic = false;
             Rigidbody.linearVelocity = Vector3.zero;
             Rigidbody.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private void ClearCoinsAt(Vector3 pos)
+    {
+        float radius = strikerRadius + 0.03f;
+        Collider[] overlaps = Physics.OverlapSphere(pos, radius);
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider other = overlaps[i];
+            if (other == null) continue;
+
+            Coin coin = other.GetComponent<Coin>();
+            if (coin == null)
+                coin = other.GetComponentInParent<Coin>();
+            if (coin == null) continue;
+
+            Rigidbody coinBody = coin.GetComponent<Rigidbody>();
+
+            Vector3 away = coin.transform.position - pos;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.0001f)
+                away = Vector3.right;
+
+            Vector3 newPos = pos + away.normalized * (radius + 0.05f);
+            newPos.y = coin.transform.position.y;
+            coin.transform.position = newPos;
+
+            if (coinBody != null)
+            {
+                coinBody.linearVelocity = Vector3.zero;
+                coinBody.angularVelocity = Vector3.zero;
+            }
         }
     }
 

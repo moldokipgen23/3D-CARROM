@@ -178,13 +178,13 @@ public class CoinSpawner : MonoBehaviour
         RemoveCollider(topDetail);
 
         Rigidbody rb = coinGroup.AddComponent<Rigidbody>();
-        rb.mass = 5f;
+        rb.mass = 1f;
         rb.useGravity = true;
         rb.constraints = RigidbodyConstraints.FreezePositionY |
                          RigidbodyConstraints.FreezeRotationX |
                          RigidbodyConstraints.FreezeRotationZ;
-        rb.linearDamping = 0.3f;
-        rb.angularDamping = 0.8f;
+        rb.linearDamping = 0.12f;
+        rb.angularDamping = 0.5f;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
