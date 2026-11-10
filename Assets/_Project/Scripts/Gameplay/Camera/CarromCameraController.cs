@@ -3,9 +3,9 @@ using UnityEngine;
 public class CarromCameraController : MonoBehaviour
 {
     [Header("Camera Settings")]
-    public float cameraDistance = 7.2f;
+    public float cameraDistance = 7f;
     public float cameraHeight = 2f;
-    public float cameraAngle = 55f;
+    public float cameraAngle = 70f;
     public float smoothTime = 0.3f;
 
     [Header("Target References")]
@@ -17,7 +17,7 @@ public class CarromCameraController : MonoBehaviour
 
     [Header("Framing")]
     public Vector3 boardCenter = Vector3.zero;
-    public float fieldOfView = 58f;
+    public float fieldOfView = 56f;
 
     private Camera cam;
     private bool initialized = false;
@@ -59,7 +59,7 @@ public class CarromCameraController : MonoBehaviour
         cam.nearClipPlane = 0.1f;
         cam.farClipPlane = 100f;
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.07f, 0.05f, 0.035f, 1f);
+        cam.backgroundColor = new Color(0.13f, 0.085f, 0.055f, 1f);
         cam.allowHDR = true;
         cam.allowMSAA = true;
 

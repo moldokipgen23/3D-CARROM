@@ -73,9 +73,12 @@ public static class RuntimeUI
 
         CanvasScaler scaler = go.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        // Portrait-first layout (1080x1920 reference) matching the phone build.
+        // Match width so every horizontal measurement stays exact on tall
+        // phones; the extra height simply extends the vertical anchors.
+        scaler.referenceResolution = new Vector2(1080f, 1920f);
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
+        scaler.matchWidthOrHeight = 0f;
 
         return canvas;
     }

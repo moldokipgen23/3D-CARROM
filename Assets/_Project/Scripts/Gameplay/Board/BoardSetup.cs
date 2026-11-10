@@ -11,7 +11,7 @@ public class BoardSetup : MonoBehaviour
     [Header("Pockets")]
     public float pocketRadius = 0.065f;
     public float pocketDepth = 0.03f;
-    public float pocketRimWidth = 0.012f;
+    public float pocketRimWidth = 0.017f;
 
     [Header("Markings")]
     public float centerCircleRadius = 0.18f;
@@ -63,11 +63,22 @@ public class BoardSetup : MonoBehaviour
         GameObject table = GameObject.CreatePrimitive(PrimitiveType.Cube);
         table.name = "Table";
         table.transform.parent = parent.transform;
-        table.transform.localPosition = new Vector3(0, -0.05f, 0);
-        table.transform.localScale = new Vector3(boardSize + 1.2f, 0.1f, boardSize + 1.2f);
-
-        Material tableMat = CreateMaterial(new Color(0.18f, 0.11f, 0.06f), 0.2f, 0.6f);
+        table.transform.localPosition = new Vector3(0, -0.075f, 0);
+        table.transform.localScale = new Vector3(boardSize + 2.6f, 0.15f, boardSize + 2.6f);
+        // Darken the table a touch so the board frame reads as a separate object.
+        Material tableMat = CreateRosewoodMaterial();
+        tableMat.color = new Color(0.62f, 0.55f, 0.52f);
         table.GetComponent<MeshRenderer>().sharedMaterial = tableMat;
+
+        // Wide floor so the portrait frame is filled with warm wood instead of
+        // black void above and below the board.
+        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor.name = "Floor";
+        floor.transform.parent = parent.transform;
+        floor.transform.localPosition = new Vector3(0, -1.15f, 0);
+        floor.transform.localScale = new Vector3(24f, 0.12f, 24f);
+        floor.GetComponent<MeshRenderer>().sharedMaterial =
+            CreateMaterial(new Color(0.11f, 0.075f, 0.05f), 0.05f, 0.35f);
     }
 
     private void CreatePlayingSurface(GameObject parent)
@@ -78,14 +89,12 @@ public class BoardSetup : MonoBehaviour
         surface.transform.localPosition = new Vector3(0, boardThickness / 2f + 0.001f, 0);
         surface.transform.localScale = new Vector3(boardSize, 0.005f, boardSize);
 
-        Material surfaceMat = CreateMaterial(new Color(0.15f, 0.38f, 0.18f), 0.05f, 0.7f);
+        Material surfaceMat = CreateSurfaceMaterial();
         surface.GetComponent<MeshRenderer>().sharedMaterial = surfaceMat;
     }
 
     private void CreateWoodFrame(GameObject parent)
     {
-        Color woodColor = new Color(0.45f, 0.25f, 0.12f);
-        Color woodDark = new Color(0.35f, 0.18f, 0.08f);
         float outerSize = boardSize + borderWidth * 2f;
 
         string[] frameNames = { "Frame_Top", "Frame_Bottom", "Frame_Left", "Frame_Right" };
@@ -102,6 +111,8 @@ public class BoardSetup : MonoBehaviour
             new Vector3(borderWidth, frameHeight, outerSize)
         };
 
+        Material frameMat = CreateRosewoodMaterial();
+
         for (int i = 0; i < 4; i++)
         {
             GameObject frame = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -109,12 +120,38 @@ public class BoardSetup : MonoBehaviour
             frame.transform.parent = parent.transform;
             frame.transform.localPosition = positions[i];
             frame.transform.localScale = scales[i];
-
-            Material frameMat = CreateMaterial(i % 2 == 0 ? woodColor : woodDark, 0.15f, 0.55f);
             frame.GetComponent<MeshRenderer>().sharedMaterial = frameMat;
         }
 
-        CreateInnerRim(parent, woodDark);
+        CreateInnerRim(parent, new Color(0.16f, 0.07f, 0.03f));
+        CreateFrameInlay(parent);
+    }
+
+    /// <summary>Brass pinstripe around the frame, like an inlaid carrom board.</summary>
+    private void CreateFrameInlay(GameObject parent)
+    {
+        float y = boardThickness / 2f + frameHeight * 0.5f + 0.001f;
+        float inset = 0.028f;
+        float dist = boardSize / 2f + borderWidth * 0.5f;
+        float length = boardSize + borderWidth * 2f - inset * 2f;
+        Material brass = CreateBrassMaterial();
+
+        for (int i = 0; i < 4; i++)
+        {
+            bool horizontal = i < 2;
+            GameObject strip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            strip.name = "FrameInlay_" + i;
+            strip.transform.parent = parent.transform;
+            strip.transform.localPosition = new Vector3(
+                horizontal ? 0f : (i == 2 ? -dist : dist),
+                y,
+                horizontal ? (i == 0 ? dist : -dist) : 0f);
+            strip.transform.localScale = horizontal
+                ? new Vector3(length, 0.003f, 0.012f)
+                : new Vector3(0.012f, 0.003f, length);
+            strip.GetComponent<MeshRenderer>().sharedMaterial = brass;
+            RemoveCollider(strip);
+        }
     }
 
     private void CreateInnerRim(GameObject parent, Color rimColor)
@@ -144,7 +181,7 @@ public class BoardSetup : MonoBehaviour
             rim.transform.localPosition = positions[i];
             rim.transform.localScale = scales[i];
 
-            Material rimMat = CreateMaterial(new Color(0.55f, 0.32f, 0.15f), 0.1f, 0.7f);
+            Material rimMat = CreateMaterial(new Color(0.24f, 0.10f, 0.045f), 0.08f, 0.65f);
             rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
             RemoveCollider(rim);
         }
@@ -153,8 +190,8 @@ public class BoardSetup : MonoBehaviour
     private void CreatePockets(GameObject parent)
     {
         Vector3[] pocketPositions = CalculatePocketPositions();
-        Material pocketMat = CreateMaterial(new Color(0.02f, 0.02f, 0.02f), 0.1f, 0.3f);
-        Material rimMat = CreateMaterial(new Color(0.75f, 0.65f, 0.2f), 0.8f, 0.9f);
+        Material pocketMat = CreateMaterial(new Color(0.015f, 0.012f, 0.01f), 0.15f, 0.35f);
+        Material rimMat = CreateBrassMaterial();
 
         for (int i = 0; i < 4; i++)
         {
@@ -172,7 +209,12 @@ public class BoardSetup : MonoBehaviour
 
             GameObject pocketRim = CreateTorusRing(pocketGroup.transform, pocketRadius, pocketRimWidth, rimMat);
             pocketRim.name = "Rim";
-            pocketRim.transform.localPosition = new Vector3(0, 0.003f, 0);
+            pocketRim.transform.localPosition = new Vector3(0, 0.004f, 0);
+
+            GameObject pocketInner = CreateTorusRing(pocketGroup.transform, pocketRadius * 0.92f,
+                pocketRimWidth * 0.45f, CreateMaterial(new Color(0.09f, 0.065f, 0.04f), 0.4f, 0.75f));
+            pocketInner.name = "InnerRim";
+            pocketInner.transform.localPosition = new Vector3(0, 0.002f, 0);
 
             SphereCollider pocketCollider = pocketGroup.AddComponent<SphereCollider>();
             pocketCollider.radius = pocketRadius;
@@ -196,32 +238,52 @@ public class BoardSetup : MonoBehaviour
     private void CreateCenterDesign(GameObject parent)
     {
         float surfaceY = boardThickness / 2f + 0.003f;
+        Color lineColor = new Color(0.24f, 0.14f, 0.07f);
+        Color redColor = new Color(0.62f, 0.11f, 0.09f);
 
         CreateCircleOnBoard(parent, "CenterCircle_Outer", centerCircleRadius, surfaceY,
-            new Color(0.9f, 0.85f, 0.7f), 0.012f);
-
+            lineColor, 0.010f);
+        CreateCircleOnBoard(parent, "CenterCircle_Mid", centerCircleRadius * 0.78f, surfaceY,
+            redColor, 0.008f);
         CreateCircleOnBoard(parent, "CenterCircle_Inner", innerCircleRadius, surfaceY,
-            new Color(0.9f, 0.85f, 0.7f), 0.012f);
+            lineColor, 0.008f);
 
-        for (int i = 0; i < 4; i++)
+        // Sixteen-petal rosette, the classic carrom centre motif: radial ticks
+        // between the inner disc and the outer circle, alternating length.
+        for (int i = 0; i < 16; i++)
         {
-            float angle = i * 90f * Mathf.Deg2Rad;
-            float x = Mathf.Cos(angle) * (centerCircleRadius + 0.05f);
-            float z = Mathf.Sin(angle) * (centerCircleRadius + 0.05f);
+            float angle = i * Mathf.PI * 2f / 16f;
+            bool major = i % 2 == 0;
+            float inner = innerCircleRadius + 0.006f;
+            float outer = major ? centerCircleRadius * 0.74f : centerCircleRadius * 0.60f;
+            float mid = (inner + outer) * 0.5f;
 
-            CreateSmallDot(parent, $"CenterDot_{i}", new Vector3(x, surfaceY, z), smallCircleRadius,
-                new Color(0.9f, 0.85f, 0.7f));
+            GameObject petal = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            petal.name = "Petal_" + i;
+            petal.transform.parent = parent.transform;
+            petal.transform.position = new Vector3(
+                Mathf.Cos(angle) * mid, surfaceY + 0.0004f, Mathf.Sin(angle) * mid);
+            petal.transform.rotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, 0f);
+            petal.transform.localScale = new Vector3(outer - inner, 0.0012f,
+                major ? 0.008f : 0.005f);
+            petal.GetComponent<MeshRenderer>().sharedMaterial =
+                CreateMaterial(major ? redColor : lineColor, 0.1f, 0.5f);
+            RemoveCollider(petal);
         }
 
-        CreateCircleOnBoard(parent, "CenterDot_Main", smallCircleRadius * 1.5f, surfaceY,
-            new Color(0.8f, 0.15f, 0.1f), 0.015f);
+        CreateCircleOnBoard(parent, "CenterDot_Main", smallCircleRadius * 1.3f, surfaceY,
+            redColor, 0.008f);
     }
 
     private void CreateBaseLines(GameObject parent)
     {
         float surfaceY = boardThickness / 2f + 0.003f;
-        float lineLength = 0.35f;
-        float lineThickness = 0.012f;
+        float lineLength = 0.54f;
+        float lineThickness = 0.009f;
+        float gap = 0.062f;
+
+        Color lineColor = new Color(0.22f, 0.13f, 0.06f);
+        Color redColor = new Color(0.62f, 0.11f, 0.09f);
 
         Vector3[] basePositions = {
             new Vector3(0, surfaceY, baseLineDistance),
@@ -232,16 +294,41 @@ public class BoardSetup : MonoBehaviour
 
         for (int i = 0; i < 4; i++)
         {
-            GameObject line = new GameObject($"BaseLine_{i}");
-            line.transform.parent = parent.transform;
-            line.transform.position = basePositions[i];
+            GameObject group = new GameObject($"BaseLine_{i}");
+            group.transform.parent = parent.transform;
+            group.transform.position = basePositions[i];
 
             bool isHorizontal = i < 2;
-            line.transform.rotation = Quaternion.Euler(0, isHorizontal ? 0 : 90f, 0);
+            group.transform.rotation = Quaternion.Euler(0, isHorizontal ? 0 : 90f, 0);
 
-            CreateLineSegment(line, lineLength, lineThickness, surfaceY, new Color(0.9f, 0.85f, 0.7f));
-            CreateArcAtBase(line, isHorizontal, surfaceY);
+            // Standard carrom base: two parallel lines with red end circles.
+            for (int side = -1; side <= 1; side += 2)
+            {
+                GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                line.name = "Line";
+                line.transform.parent = group.transform;
+                line.transform.localPosition = new Vector3(0f, 0.001f, side * gap * 0.5f);
+                line.transform.localScale = new Vector3(lineLength, 0.002f, lineThickness);
+                line.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(lineColor, 0.1f, 0.5f);
+                RemoveCollider(line);
+            }
+
+            CreateBaseDisc(group.transform, new Vector3(-lineLength * 0.5f, 0.0012f, 0f), 0.024f, redColor);
+            CreateBaseDisc(group.transform, new Vector3(lineLength * 0.5f, 0.0012f, 0f), 0.024f, redColor);
+
+            CreateArcAtBase(group, isHorizontal, surfaceY);
         }
+    }
+
+    private void CreateBaseDisc(Transform parent, Vector3 localPos, float radius, Color color)
+    {
+        GameObject disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        disc.name = "BaseDisc";
+        disc.transform.parent = parent;
+        disc.transform.localPosition = localPos;
+        disc.transform.localScale = new Vector3(radius * 2f, 0.0008f, radius * 2f);
+        disc.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.55f);
+        RemoveCollider(disc);
     }
 
     private void CreateOuterLines(GameObject parent)
@@ -269,14 +356,14 @@ public class BoardSetup : MonoBehaviour
             line.transform.rotation = Quaternion.Euler(0, isHorizontal ? 0 : 90f, 0);
 
             float segLength = boardSize - offset * 4f;
-            CreateLineSegment(line, segLength, lineThickness, surfaceY, new Color(0.85f, 0.8f, 0.65f));
+            CreateLineSegment(line, segLength, lineThickness, surfaceY, new Color(0.26f, 0.16f, 0.08f));
         }
     }
 
     private void CreateArrowMarkers(GameObject parent)
     {
         float surfaceY = boardThickness / 2f + 0.003f;
-        Color arrowColor = new Color(0.9f, 0.85f, 0.7f);
+        Color arrowColor = new Color(0.30f, 0.18f, 0.09f);
 
         Vector3[] arrowPositions = {
             new Vector3(0, surfaceY, baseLineDistance + 0.05f),
@@ -416,7 +503,7 @@ public class BoardSetup : MonoBehaviour
         GameObject arc = new GameObject("Arc");
         arc.transform.parent = parent.transform;
         arc.AddComponent<MeshFilter>().sharedMesh = mesh;
-        arc.AddComponent<MeshRenderer>().sharedMaterial = CreateMaterial(new Color(0.9f, 0.85f, 0.7f), 0.1f, 0.5f);
+        arc.AddComponent<MeshRenderer>().sharedMaterial = CreateMaterial(new Color(0.62f, 0.11f, 0.09f), 0.1f, 0.5f);
     }
 
     private void CreateArrowShape(GameObject parent, float length, float y, Color color)
@@ -522,16 +609,32 @@ public class BoardSetup : MonoBehaviour
         lightingObj.transform.parent = parent.transform;
         lightingObj.transform.position = new Vector3(0, 2f, 0);
 
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = new Color(0.32f, 0.26f, 0.20f);
+
         Light mainLight = lightingObj.AddComponent<Light>();
         mainLight.type = LightType.Directional;
-        mainLight.color = new Color(1f, 0.97f, 0.92f);
-        mainLight.intensity = 1.2f;
+        mainLight.color = new Color(1f, 0.96f, 0.90f);
+        mainLight.intensity = 1.25f;
         mainLight.shadows = LightShadows.Soft;
-        mainLight.shadowStrength = 0.7f;
-        lightingObj.transform.rotation = Quaternion.Euler(50f, -30f, 0);
+        mainLight.shadowStrength = 0.55f;
+        mainLight.shadowBias = 0.035f;
+        mainLight.shadowNormalBias = 0.6f;
+        lightingObj.transform.rotation = Quaternion.Euler(52f, -28f, 0);
 
-        CreateFillLight(parent, new Vector3(-1.5f, 1.5f, -1.5f), new Color(0.6f, 0.7f, 0.9f), 0.4f);
-        CreateFillLight(parent, new Vector3(1.5f, 1.5f, 1.5f), new Color(0.9f, 0.85f, 0.7f), 0.3f);
+        // Warm overhead lamp: gives the varnished board and coins a soft hotspot.
+        GameObject lampObj = new GameObject("OverheadLamp");
+        lampObj.transform.parent = parent.transform;
+        lampObj.transform.position = new Vector3(0f, 2.6f, -0.2f);
+        Light lamp = lampObj.AddComponent<Light>();
+        lamp.type = LightType.Point;
+        lamp.color = new Color(1f, 0.90f, 0.76f);
+        lamp.intensity = 1.05f;
+        lamp.range = 5.0f;
+        lamp.shadows = LightShadows.None;
+
+        CreateFillLight(parent, new Vector3(-1.9f, 1.6f, -1.9f), new Color(0.55f, 0.68f, 0.95f), 0.5f);
+        CreateFillLight(parent, new Vector3(1.9f, 1.6f, 1.9f), new Color(0.95f, 0.86f, 0.68f), 0.45f);
     }
 
     private void RemoveCollider(GameObject go)
@@ -554,6 +657,41 @@ public class BoardSetup : MonoBehaviour
         fill.color = color;
         fill.intensity = intensity;
         fill.range = 5f;
+    }
+
+
+    private Material CreateSurfaceMaterial()
+    {
+        return CreateTexturedMaterial(ProceduralTextures.GetPlywoodTexture(), 0.0f, 0.42f);
+    }
+
+    private Material CreateRosewoodMaterial()
+    {
+        return CreateTexturedMaterial(ProceduralTextures.GetRosewoodTexture(), 0.05f, 0.70f);
+    }
+
+    private Material CreateBrassMaterial()
+    {
+        return CreateMaterial(new Color(0.97f, 0.82f, 0.42f), 0.9f, 0.95f);
+    }
+
+    private Material CreateTexturedMaterial(Texture2D texture, float metallic, float smoothness)
+    {
+        Shader shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Diffuse");
+
+        Material mat = new Material(shader);
+        mat.color = Color.white;
+        mat.mainTexture = texture;
+        mat.mainTextureScale = Vector2.one;
+
+        if (shader.name == "Standard")
+        {
+            mat.SetFloat("_Metallic", metallic);
+            mat.SetFloat("_Glossiness", smoothness);
+        }
+
+        return mat;
     }
 
     private Material CreateMaterial(Color color, float metallic, float smoothness)

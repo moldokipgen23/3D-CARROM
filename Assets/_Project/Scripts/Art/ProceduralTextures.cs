@@ -2,6 +2,152 @@ using UnityEngine;
 
 public static class ProceduralTextures
 {
+    private static Texture2D cachedPlywood;
+    private static Texture2D cachedRosewood;
+
+    /// <summary>Light warm plywood used for the carrom playing surface.</summary>
+    public static Texture2D GetPlywoodTexture()
+    {
+        if (cachedPlywood != null) return cachedPlywood;
+        cachedPlywood = CreatePlywoodTexture(512);
+        return cachedPlywood;
+    }
+
+    /// <summary>Deep reddish hardwood used for the board frame.</summary>
+    public static Texture2D GetRosewoodTexture()
+    {
+        if (cachedRosewood != null) return cachedRosewood;
+        cachedRosewood = CreateRosewoodTexture(512);
+        return cachedRosewood;
+    }
+
+    public static Texture2D CreatePlywoodTexture(int size = 512)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color light = new Color(0.78f, 0.58f, 0.35f);
+        Color mid = new Color(0.67f, 0.47f, 0.26f);
+        Color dark = new Color(0.52f, 0.34f, 0.17f);
+
+        for (int y = 0; y < size; y++)
+        {
+            float v = (float)y / size;
+            for (int x = 0; x < size; x++)
+            {
+                float u = (float)x / size;
+
+                // Long, soft grain running across the board.
+                // Long, soft grain running along the board (x). Three octaves
+                // keep it organic - a regular wave reads as ugly banding.
+                float grain = Mathf.PerlinNoise(x * 0.006f, y * 0.05f) * 0.62f;
+                float streak = Mathf.PerlinNoise(x * 0.022f + 13f, y * 0.17f + 7f) * 0.30f;
+                float fine = Mathf.PerlinNoise(x * 0.11f + 31f, y * 0.62f + 19f) * 0.16f;
+                float pore = Mathf.PerlinNoise(x * 0.85f + 5f, y * 0.12f + 2f) * 0.06f;
+
+                float t = Mathf.Clamp01(grain + streak + fine + pore);
+                Color c = Color.Lerp(light, mid, t * 0.85f);
+                c = Color.Lerp(c, dark, Mathf.Clamp01((t - 0.62f) * 1.4f));
+
+                // Gentle centre brightness so the playing area feels lit.
+                float dx = u - 0.5f;
+                float dy = v - 0.5f;
+                float vig = Mathf.Clamp01(1f - (dx * dx + dy * dy) * 1.5f);
+                c *= 0.80f + vig * 0.16f;
+
+                c.a = 1f;
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        tex.Apply(false, true);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        return tex;
+    }
+
+    public static Texture2D CreateRosewoodTexture(int size = 512)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color light = new Color(0.42f, 0.21f, 0.11f);
+        Color mid = new Color(0.30f, 0.13f, 0.06f);
+        Color dark = new Color(0.18f, 0.07f, 0.03f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float grain = Mathf.PerlinNoise(x * 0.02f, y * 0.16f);
+                float fine = Mathf.PerlinNoise(x * 0.12f, y * 0.55f) * 0.35f;
+                float streak = Mathf.PerlinNoise(x * 0.5f, y * 0.03f) * 0.18f;
+
+                float t = Mathf.Clamp01(grain * 0.65f + fine + streak);
+                Color c = Color.Lerp(mid, light, Mathf.Clamp01((t - 0.35f) * 1.6f));
+                c = Color.Lerp(c, dark, Mathf.Clamp01((0.55f - t) * 1.8f));
+
+                c.a = 1f;
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        tex.Apply(false, true);
+        tex.wrapMode = TextureWrapMode.Repeat;
+        tex.filterMode = FilterMode.Bilinear;
+        return tex;
+    }
+
+    /// <summary>Face print for a coin: concentric rings plus a small motif.</summary>
+    public static Texture2D CreateCoinFaceTexture(Color face, Color ring, bool queen = false, int size = 128)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        float half = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float px = (x + 0.5f - half) / half;
+                float py = (y + 0.5f - half) / half;
+                float r = Mathf.Sqrt(px * px + py * py);
+
+                Color c = face;
+
+                // printed concentric bands
+                if (r > 0.34f && r < 0.40f) c = Color.Lerp(c, ring, 0.55f);
+                if (r > 0.62f && r < 0.70f) c = Color.Lerp(c, ring, 0.85f);
+                if (r > 0.86f) c = Color.Lerp(c, ring, 0.35f);
+
+                if (queen)
+                {
+                    // simple crown silhouette
+                    float crownTop = 0.30f;
+                    float crownBottom = 0.34f;
+                    bool inCrown = py > -0.18f && py < crownTop &&
+                                   Mathf.Abs(px) < crownBottom * (1f - Mathf.Clamp01((py + 0.18f) / 0.5f) * 0.35f);
+                    if (inCrown && (py < 0.10f || Mathf.Abs(Mathf.Sin(px * 18f)) > 0.55f))
+                        c = Color.Lerp(c, new Color(1f, 0.86f, 0.42f), 0.9f);
+                }
+                else
+                {
+                    // small centre star
+                    float star = Mathf.Pow(Mathf.Abs(px), 0.6f) + Mathf.Pow(Mathf.Abs(py), 0.6f);
+                    if (star < 0.28f) c = Color.Lerp(c, ring, 0.55f);
+                }
+
+                // soft sheen
+                float sheen = Mathf.Clamp01(1f - Vector2.Distance(
+                    new Vector2(px, py), new Vector2(-0.35f, 0.35f)) / 0.9f);
+                c = Color.Lerp(c, Color.white, sheen * 0.18f);
+
+                c.a = 1f;
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        tex.Apply(false, true);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        return tex;
+    }
+
     public static Texture2D CreateWoodTexture(int width = 256, int height = 256)
     {
         Texture2D tex = new Texture2D(width, height);

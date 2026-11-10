@@ -122,9 +122,7 @@ public class CoinSpawner : MonoBehaviour
 
     private void CreateCoin(string name, Vector3 pos, Material bodyMat, Material rimMat, CoinType type)
     {
-        GameObject coinGroup = BuildCoinObject(name, pos, bodyMat, rimMat, type == CoinType.White
-            ? new Color(0.9f, 0.85f, 0.75f)
-            : new Color(0.18f, 0.15f, 0.1f));
+        GameObject coinGroup = BuildCoinObject(name, pos, type);
 
         Coin coinScript = coinGroup.AddComponent<Coin>();
         coinScript.Type = type;
@@ -132,50 +130,97 @@ public class CoinSpawner : MonoBehaviour
 
     private void CreateQueen(string name, Vector3 pos, Material bodyMat, Material rimMat)
     {
-        GameObject coinGroup = BuildCoinObject(name, pos, bodyMat, rimMat, new Color(0.75f, 0.1f, 0.1f));
+        GameObject coinGroup = BuildCoinObject(name, pos, CoinType.Queen);
 
         GameObject crownDot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         crownDot.name = "CrownDot";
         crownDot.transform.parent = coinGroup.transform;
-        crownDot.transform.localPosition = new Vector3(0, coinThickness * 0.5f, 0);
-        crownDot.transform.localScale = new Vector3(coinRadius * 0.6f, coinThickness * 0.1f, coinRadius * 0.6f);
-        crownDot.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(new Color(0.9f, 0.75f, 0.2f), 0.85f, 0.95f);
+        crownDot.transform.localPosition = new Vector3(0, coinThickness * 0.52f, 0);
+        crownDot.transform.localScale = new Vector3(coinRadius * 0.5f, coinThickness * 0.08f, coinRadius * 0.5f);
+        crownDot.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(new Color(0.95f, 0.79f, 0.32f), 0.9f, 0.95f);
         RemoveCollider(crownDot);
 
         Coin coinScript = coinGroup.AddComponent<Coin>();
         coinScript.Type = CoinType.Queen;
     }
 
-    private GameObject BuildCoinObject(string name, Vector3 pos, Material bodyMat, Material rimMat, Color topColor)
+    private static Texture2D whiteFaceTexture;
+    private static Texture2D blackFaceTexture;
+    private static Texture2D queenFaceTexture;
+
+    private Texture2D FaceTexture(CoinType type)
     {
+        if (type == CoinType.White)
+        {
+            if (whiteFaceTexture == null)
+                whiteFaceTexture = ProceduralTextures.CreateCoinFaceTexture(
+                    new Color(0.97f, 0.94f, 0.87f), new Color(0.79f, 0.67f, 0.40f), false);
+            return whiteFaceTexture;
+        }
+
+        if (type == CoinType.Black)
+        {
+            if (blackFaceTexture == null)
+                blackFaceTexture = ProceduralTextures.CreateCoinFaceTexture(
+                    new Color(0.14f, 0.12f, 0.10f), new Color(0.42f, 0.33f, 0.19f), false);
+            return blackFaceTexture;
+        }
+
+        if (queenFaceTexture == null)
+            queenFaceTexture = ProceduralTextures.CreateCoinFaceTexture(
+                new Color(0.72f, 0.10f, 0.09f), new Color(0.96f, 0.80f, 0.36f), true);
+        return queenFaceTexture;
+    }
+
+    private GameObject BuildCoinObject(string name, Vector3 pos, CoinType type)
+    {
+        bool white = type == CoinType.White;
+        bool queen = type == CoinType.Queen;
+
+        Color faceColor = queen ? new Color(0.72f, 0.10f, 0.09f)
+                        : white ? new Color(0.97f, 0.94f, 0.87f)
+                                : new Color(0.13f, 0.11f, 0.09f);
+
+        Color rimColor = queen ? new Color(0.90f, 0.72f, 0.30f)
+                       : white ? new Color(0.78f, 0.71f, 0.56f)
+                               : new Color(0.27f, 0.21f, 0.14f);
+
+        Material sideMat = CreateMaterial(faceColor, 0.05f, 0.72f);
+        Material rimMat = CreateMaterial(rimColor, queen ? 0.85f : 0.45f, 0.92f);
+        Material faceMat = CreateMaterial(Color.white, 0.05f, 0.88f);
+        faceMat.mainTexture = FaceTexture(type);
+
         GameObject coinGroup = new GameObject(name);
         coinGroup.transform.position = pos;
         coinGroup.tag = "Coin";
         coinGroup.layer = LayerMask.NameToLayer("Default");
 
-        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        body.name = "Body";
-        body.transform.parent = coinGroup.transform;
-        body.transform.localPosition = Vector3.zero;
-        body.transform.localScale = new Vector3(coinRadius * 2f, coinThickness / 2f, coinRadius * 2f);
-        body.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
-        RemoveCollider(body);
-
+        // Outer bevel / rim.
         GameObject rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         rim.name = "Rim";
         rim.transform.parent = coinGroup.transform;
         rim.transform.localPosition = Vector3.zero;
-        rim.transform.localScale = new Vector3(coinRadius * 2.15f, coinThickness / 2f * 0.95f, coinRadius * 2.15f);
+        rim.transform.localScale = new Vector3(coinRadius * 2.16f, coinThickness / 2f, coinRadius * 2.16f);
         rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
         RemoveCollider(rim);
 
-        GameObject topDetail = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        topDetail.name = "TopDetail";
-        topDetail.transform.parent = coinGroup.transform;
-        topDetail.transform.localPosition = new Vector3(0, coinThickness * 0.35f, 0);
-        topDetail.transform.localScale = new Vector3(coinRadius * 1.4f, coinThickness * 0.15f, coinRadius * 1.4f);
-        topDetail.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(topColor, 0.3f, 0.6f);
-        RemoveCollider(topDetail);
+        // Main body.
+        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        body.name = "Body";
+        body.transform.parent = coinGroup.transform;
+        body.transform.localPosition = new Vector3(0f, 0.0002f, 0f);
+        body.transform.localScale = new Vector3(coinRadius * 2f, coinThickness / 2f * 1.01f, coinRadius * 2f);
+        body.GetComponent<MeshRenderer>().sharedMaterial = sideMat;
+        RemoveCollider(body);
+
+        // Printed face.
+        GameObject face = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        face.name = "Face";
+        face.transform.parent = coinGroup.transform;
+        face.transform.localPosition = new Vector3(0f, coinThickness * 0.5f + 0.0005f, 0f);
+        face.transform.localScale = new Vector3(coinRadius * 1.9f, 0.0006f, coinRadius * 1.9f);
+        face.GetComponent<MeshRenderer>().sharedMaterial = faceMat;
+        RemoveCollider(face);
 
         Rigidbody rb = coinGroup.AddComponent<Rigidbody>();
         rb.mass = 1f;

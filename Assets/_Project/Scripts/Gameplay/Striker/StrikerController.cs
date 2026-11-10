@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using System;
 
@@ -36,6 +37,10 @@ public class StrikerController : MonoBehaviour
     private bool isAiming = false;
     private GameObject strikerGlow;
     private GameObject aimLine;
+    private GameObject baselineTrack;
+    private bool isSlidingStriker;
+    private List<GameObject> aimDots;
+    private List<Material> aimDotMats;
 
     private void Awake()
     {
@@ -44,53 +49,28 @@ public class StrikerController : MonoBehaviour
         mainCamera = Camera.main;
         SetupPhysics();
         BuildStrikerVisual();
+        BuildBaselineTrack();
         ResetToBaseline(1);
     }
 
     private void BuildStrikerVisual()
     {
-        Material bodyMat = CreateStrikerMaterial();
-        Material rimMat = CreateGoldRimMaterial();
+        Material ivory = CreateSimpleMaterial(new Color(0.97f, 0.95f, 0.90f), 0.15f, 0.90f);
+        Material red = CreateSimpleMaterial(new Color(0.70f, 0.13f, 0.11f), 0.10f, 0.85f);
+        Material gold = CreateSimpleMaterial(new Color(0.94f, 0.77f, 0.34f), 0.85f, 0.95f);
 
-        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        body.name = "StrikerBody";
-        body.transform.parent = transform;
-        body.transform.localPosition = Vector3.zero;
-        body.transform.localScale = new Vector3(strikerRadius * 2f, 0.015f, strikerRadius * 2f);
-        body.GetComponent<MeshRenderer>().sharedMaterial = bodyMat;
-        RemoveCollider(body);
-
-        GameObject rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        rim.name = "StrikerRim";
-        rim.transform.parent = transform;
-        rim.transform.localPosition = new Vector3(0, 0, 0);
-        rim.transform.localScale = new Vector3(strikerRadius * 2.3f, 0.013f, strikerRadius * 2.3f);
-        rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
-        RemoveCollider(rim);
-
-        GameObject top = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        top.name = "StrikerTop";
-        top.transform.parent = transform;
-        top.transform.localPosition = new Vector3(0, 0.016f, 0);
-        top.transform.localScale = new Vector3(strikerRadius * 1.5f, 0.005f, strikerRadius * 1.5f);
-        Material topMat = new Material(GetShader());
-        topMat.color = new Color(0.95f, 0.92f, 0.88f);
-        topMat.SetFloat("_Metallic", 0.85f);
-        topMat.SetFloat("_Glossiness", 0.95f);
-        top.GetComponent<MeshRenderer>().sharedMaterial = topMat;
-        RemoveCollider(top);
-
-        GameObject centerDot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        centerDot.name = "CenterDot";
-        centerDot.transform.parent = transform;
-        centerDot.transform.localPosition = new Vector3(0, 0.022f, 0);
-        centerDot.transform.localScale = new Vector3(strikerRadius * 0.5f, 0.003f, strikerRadius * 0.5f);
-        Material dotMat = new Material(GetShader());
-        dotMat.color = new Color(0.85f, 0.7f, 0.2f);
-        dotMat.SetFloat("_Metallic", 0.9f);
-        dotMat.SetFloat("_Glossiness", 0.95f);
-        centerDot.GetComponent<MeshRenderer>().sharedMaterial = dotMat;
-        RemoveCollider(centerDot);
+        Cylinder("StrikerBody", ivory,
+            new Vector3(strikerRadius * 2f, 0.015f, strikerRadius * 2f), 0f);
+        Cylinder("StrikerEdge", red,
+            new Vector3(strikerRadius * 2.18f, 0.0136f, strikerRadius * 2.18f), 0f);
+        Cylinder("StrikerFace", ivory,
+            new Vector3(strikerRadius * 1.86f, 0.0026f, strikerRadius * 1.86f), 0.0164f);
+        Cylinder("StrikerRing", red,
+            new Vector3(strikerRadius * 1.30f, 0.0016f, strikerRadius * 1.30f), 0.0182f);
+        Cylinder("StrikerInner", ivory,
+            new Vector3(strikerRadius * 1.06f, 0.0014f, strikerRadius * 1.06f), 0.0190f);
+        Cylinder("StrikerDot", gold,
+            new Vector3(strikerRadius * 0.44f, 0.0012f, strikerRadius * 0.44f), 0.0198f);
 
         GameObject glowObj = new GameObject("StrikerGlow");
         glowObj.transform.parent = transform;
@@ -98,9 +78,67 @@ public class StrikerController : MonoBehaviour
         Light glow = glowObj.AddComponent<Light>();
         glow.type = LightType.Point;
         glow.color = new Color(1f, 0.9f, 0.6f);
-        glow.intensity = 0.15f;
-        glow.range = 0.2f;
+        glow.intensity = 0.12f;
+        glow.range = 0.18f;
         strikerGlow = glowObj;
+    }
+
+    private GameObject Cylinder(string name, Material mat, Vector3 scale, float localY)
+    {
+        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = name;
+        go.transform.parent = transform;
+        go.transform.localPosition = new Vector3(0f, localY, 0f);
+        go.transform.localScale = scale;
+        go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        RemoveCollider(go);
+        return go;
+    }
+
+    /// <summary>Thin inlaid rail so players discover they can slide the striker.</summary>
+    private void BuildBaselineTrack()
+    {
+        if (baselineTrack != null) return;
+
+        baselineTrack = new GameObject("BaselineTrack");
+        baselineTrack.transform.position = Vector3.zero;
+
+        Material railMat = CreateSimpleMaterial(new Color(0.40f, 0.25f, 0.11f), 0.25f, 0.65f);
+        Material capMat = CreateSimpleMaterial(new Color(0.88f, 0.70f, 0.32f), 0.80f, 0.95f);
+
+        GameObject rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        rail.name = "Rail";
+        rail.transform.SetParent(baselineTrack.transform, false);
+        rail.transform.position = new Vector3(0f, 0.0436f, baselineZ);
+        rail.transform.localScale = new Vector3(baselineWidth, 0.0008f, 0.012f);
+        rail.GetComponent<MeshRenderer>().sharedMaterial = railMat;
+        RemoveCollider(rail);
+
+        for (int i = -1; i <= 1; i += 2)
+        {
+            GameObject cap = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cap.name = "RailCap";
+            cap.transform.SetParent(baselineTrack.transform, false);
+            cap.transform.position = new Vector3(i * (baselineWidth * 0.5f + 0.02f), 0.0437f, baselineZ);
+            cap.transform.localScale = new Vector3(0.020f, 0.0006f, 0.020f);
+            cap.GetComponent<MeshRenderer>().sharedMaterial = capMat;
+            RemoveCollider(cap);
+        }
+    }
+
+    private Material CreateSimpleMaterial(Color color, float metallic, float smoothness)
+    {
+        Shader shader = GetShader();
+        Material mat = new Material(shader);
+        mat.color = color;
+
+        if (shader.name == "Standard")
+        {
+            mat.SetFloat("_Metallic", metallic);
+            mat.SetFloat("_Glossiness", smoothness);
+        }
+
+        return mat;
     }
 
     private void SetupPhysics()
@@ -175,20 +213,58 @@ public class StrikerController : MonoBehaviour
 
             if (mainCamera == null) return;
 
-            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-            RaycastHit hit;
+            Vector3? pointer = GetPointerOnBoardPlane();
+            if (!pointer.HasValue) return;
 
-            if (Physics.Raycast(ray, out hit) && hit.collider == StrikerCollider)
+            Vector3 delta = pointer.Value - transform.position;
+            delta.y = 0f;
+
+            // Generous grab radius: the striker is small on a phone screen.
+            if (delta.magnitude <= strikerRadius * 4.0f)
+            {
                 StartAiming();
+            }
+            else if (IsOnBaseline(pointer.Value) && TurnManager.Instance != null
+                     && TurnManager.Instance.GetCurrentPlayer() == 1)
+            {
+                isSlidingStriker = true;
+                SlideStrikerTo(pointer.Value.x);
+            }
         }
-        else if (Input.GetMouseButtonUp(0) && isAiming)
+        else if (Input.GetMouseButtonUp(0))
         {
-            StopAimingAndShoot();
+            if (isSlidingStriker)
+            {
+                isSlidingStriker = false;
+                return;
+            }
+
+            if (isAiming)
+                StopAimingAndShoot();
+        }
+        else if (isSlidingStriker)
+        {
+            Vector3? pointer = GetPointerOnBoardPlane();
+            if (pointer.HasValue)
+                SlideStrikerTo(pointer.Value.x);
         }
         else if (isAiming)
         {
             UpdateAim();
         }
+    }
+
+    private bool IsOnBaseline(Vector3 position)
+    {
+        return Mathf.Abs(position.z - baselineZ) < 0.46f
+               && Mathf.Abs(position.x) < baselineWidth * 0.5f + 0.12f;
+    }
+
+    private void SlideStrikerTo(float x)
+    {
+        float half = baselineWidth * 0.5f;
+        float clamped = Mathf.Clamp(x, -half, half);
+        SetPosition(new Vector3(clamped, transform.position.y, baselineZ));
     }
 
     private void StartAiming()
@@ -243,17 +319,41 @@ public class StrikerController : MonoBehaviour
 
             if (aimLine == null) return;
 
-            Color lineColor = Color.Lerp(new Color(0.2f, 0.8f, 0.2f), new Color(1f, 0.2f, 0.2f), CurrentPowerNormalized);
-            aimLine.GetComponent<MeshRenderer>().material.color = lineColor;
-
-            float lineLength = 0.15f + CurrentPowerNormalized * 0.9f;
-            Vector3 linePos = transform.position + shotDirection * (lineLength / 2f + strikerRadius);
-            linePos.y = transform.position.y + 0.006f;
-
-            aimLine.transform.position = linePos;
-            aimLine.transform.localScale = new Vector3(0.012f, 0.004f, lineLength);
-            aimLine.transform.rotation = Quaternion.LookRotation(shotDirection);
             aimLine.SetActive(true);
+
+            float power = Mathf.Clamp01(CurrentPowerNormalized);
+            float length = 0.45f + power * 1.55f;
+            float startDistance = strikerRadius * 1.35f;
+
+            Color low = new Color(0.42f, 0.92f, 0.55f);
+            Color mid = new Color(1f, 0.85f, 0.36f);
+            Color high = new Color(1f, 0.42f, 0.30f);
+            Color color = power < 0.5f
+                ? Color.Lerp(low, mid, power * 2f)
+                : Color.Lerp(mid, high, (power - 0.5f) * 2f);
+
+            Vector3 origin = transform.position + Vector3.up * 0.010f;
+
+            for (int i = 0; i < aimDots.Count; i++)
+            {
+                float t = (i + 1) / (float)aimDots.Count;
+                float distance = startDistance + t * length;
+                GameObject dot = aimDots[i];
+                dot.transform.position = origin + shotDirection * distance;
+
+                // Dots taper but stay chunky enough to read on a phone screen.
+                float size = 0.042f * (1f - 0.42f * t);
+                dot.transform.localScale = new Vector3(size, 0.0012f, size);
+
+                Material mat = aimDotMats[i];
+                Color dotColor = Color.Lerp(Color.white, color, 0.55f);
+                mat.color = dotColor;
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", color * 1.5f);
+                }
+            }
         }
         else if (aimLine != null)
         {
@@ -263,16 +363,28 @@ public class StrikerController : MonoBehaviour
 
     private GameObject CreateAimLine()
     {
-        GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        line.name = "AimLine";
-        line.transform.parent = null;
+        GameObject container = new GameObject("AimLine");
+        aimDots = new List<GameObject>();
+        aimDotMats = new List<Material>();
 
-        Material lineMat = new Material(GetShader());
-        lineMat.color = Color.green;
-        line.GetComponent<MeshRenderer>().sharedMaterial = lineMat;
+        for (int i = 0; i < 15; i++)
+        {
+            GameObject dot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            dot.name = "AimDot_" + i;
+            dot.transform.parent = container.transform;
+            dot.GetComponent<MeshRenderer>().shadowCastingMode =
+                UnityEngine.Rendering.ShadowCastingMode.Off;
 
-        RemoveCollider(line);
-        return line;
+            Material mat = new Material(GetShader());
+            mat.color = Color.green;
+            dot.GetComponent<MeshRenderer>().sharedMaterial = mat;
+
+            RemoveCollider(dot);
+            aimDots.Add(dot);
+            aimDotMats.Add(mat);
+        }
+
+        return container;
     }
 
     private void CancelAim()
