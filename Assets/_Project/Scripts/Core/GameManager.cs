@@ -19,7 +19,7 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log($"GameManager InstanceID: {GetInstanceID()}");
+            Debug.Log("GameManager initialized");
         }
         else
         {
