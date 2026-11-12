@@ -123,6 +123,12 @@ public class GameHUD : MonoBehaviour
         UITheme.SetRect(bottomShade.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
             new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 400f));
 
+        Image vignette = UITheme.Rect(safe, "Vignette").gameObject.AddComponent<Image>();
+        vignette.sprite = UITheme.Vignette();
+        vignette.color = new Color(1f, 1f, 1f, 0.45f);
+        vignette.raycastTarget = false;
+        UITheme.Stretch(vignette.rectTransform, -60f, -60f, -60f, -60f);
+
         BuildPlayerCard(safe, true);
         BuildPlayerCard(safe, false);
         BuildCenterPanel(safe);

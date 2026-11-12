@@ -11,9 +11,9 @@ public class CoinSpawner : MonoBehaviour
     public int blackCoinCount = 9;
 
     [Header("Coin Dimensions")]
-    public float coinRadius = 0.038f;
-    public float coinThickness = 0.012f;
-    public float coinSpacing = 0.005f;
+    public float coinRadius = 0.0623f;
+    public float coinThickness = 0.031f;
+    public float coinSpacing = 0.0018f;
 
     [Header("Spawn")]
     public Vector3[] spawnPositions = new Vector3[19];
@@ -200,7 +200,7 @@ public class CoinSpawner : MonoBehaviour
         rim.name = "Rim";
         rim.transform.parent = coinGroup.transform;
         rim.transform.localPosition = Vector3.zero;
-        rim.transform.localScale = new Vector3(coinRadius * 2.16f, coinThickness / 2f, coinRadius * 2.16f);
+        rim.transform.localScale = new Vector3(coinRadius * 2.04f, coinThickness / 2f, coinRadius * 2.04f);
         rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
         RemoveCollider(rim);
 
@@ -234,8 +234,9 @@ public class CoinSpawner : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
         // A thin box collider behaves like a disc and rests flat on the board.
+        // Slightly under-sized so neighbouring discs in the pile never clip.
         BoxCollider coinCollider = coinGroup.AddComponent<BoxCollider>();
-        coinCollider.size = new Vector3(coinRadius * 2f, coinThickness, coinRadius * 2f);
+        coinCollider.size = new Vector3(coinRadius * 1.88f, coinThickness, coinRadius * 1.88f);
         coinCollider.center = Vector3.zero;
 
         return coinGroup;

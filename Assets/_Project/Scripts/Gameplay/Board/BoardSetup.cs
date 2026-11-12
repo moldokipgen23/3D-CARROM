@@ -2,26 +2,45 @@ using UnityEngine;
 
 public class BoardSetup : MonoBehaviour
 {
-    [Header("Board Dimensions (standard carrom: 74cm x 74cm)")]
+    [Header("Board Dimensions (ICF: 74 cm playing surface)")]
     public float boardSize = 2.9f;
-    public float borderWidth = 0.18f;
+    public float borderWidth = 0.275f;
     public float boardThickness = 0.08f;
-    public float frameHeight = 0.04f;
+    public float frameHeight = 0.086f;
 
-    [Header("Pockets")]
-    public float pocketRadius = 0.065f;
-    public float pocketDepth = 0.03f;
-    public float pocketRimWidth = 0.017f;
+    [Header("Pockets (ICF: 4.45 cm)")]
+    public float pocketRadius = 0.0872f;
+    public float pocketRimWidth = 0.009f;
 
-    [Header("Markings")]
-    public float centerCircleRadius = 0.18f;
-    public float innerCircleRadius = 0.06f;
-    public float smallCircleRadius = 0.015f;
-    public float baseLineDistance = 0.45f;
-    public float arrowLength = 0.25f;
+    [Header("Base Lines (ICF: 47 cm lines, 3.18 cm apart)")]
+    public float baseLineDistance = 0.99f;
+    public float baseLineLength = 1.842f;
+    public float baseLineGap = 0.125f;
+    public float baseCircleRadius = 0.0623f;
+    public float baseRedRadius = 0.0498f;
+
+    [Header("Centre (ICF: 3.18 cm centre circle, 17 cm outer circle)")]
+    public float centerCircleRadius = 0.0623f;
+    public float outerCircleRadius = 0.333f;
+    public float innerCircleRadius = 0.032f;
+
+    [Header("Corner Arrows")]
+    public float arrowLength = 0.34f;
+    public float arrowWidth = 0.022f;
 
     [Header("Layers")]
     public LayerMask coinLayer;
+
+    // Traditional carrom colours: near-black lines with oxblood red circles.
+    private static readonly Color LineBlack = new Color(0.075f, 0.055f, 0.042f);
+    private static readonly Color LineRed = new Color(0.56f, 0.085f, 0.065f);
+    private static readonly Color LineRedDark = new Color(0.36f, 0.05f, 0.04f);
+
+    /// <summary>Top of the playing surface (surface cube: centre 0.041, half 0.0025).</summary>
+    private float SurfaceTopY
+    {
+        get { return boardThickness / 2f + 0.0035f; }
+    }
 
     private void Start()
     {
@@ -37,14 +56,13 @@ public class BoardSetup : MonoBehaviour
         boardRoot.transform.localScale = Vector3.one;
 
         CreateTableSurface(boardRoot);
+        CreateBoardBody(boardRoot);
         CreatePlayingSurface(boardRoot);
         CreateWoodFrame(boardRoot);
         CreatePockets(boardRoot);
         CreateCenterDesign(boardRoot);
         CreateBaseLines(boardRoot);
-        CreateOuterLines(boardRoot);
-        CreateArrowMarkers(boardRoot);
-        CreateCornerDecorations(boardRoot);
+        CreateCornerArrows(boardRoot);
 
         // The playing-surface cube provides the collision floor.  A second
         // full-size collider here would overlap the coins and cause jitter.
@@ -67,7 +85,7 @@ public class BoardSetup : MonoBehaviour
         table.transform.localScale = new Vector3(boardSize + 2.6f, 0.15f, boardSize + 2.6f);
         // Darken the table a touch so the board frame reads as a separate object.
         Material tableMat = CreateRosewoodMaterial();
-        tableMat.color = new Color(0.62f, 0.55f, 0.52f);
+        tableMat.color = new Color(0.58f, 0.51f, 0.48f);
         table.GetComponent<MeshRenderer>().sharedMaterial = tableMat;
 
         // Wide floor so the portrait frame is filled with warm wood instead of
@@ -79,6 +97,20 @@ public class BoardSetup : MonoBehaviour
         floor.transform.localScale = new Vector3(24f, 0.12f, 24f);
         floor.GetComponent<MeshRenderer>().sharedMaterial =
             CreateMaterial(new Color(0.11f, 0.075f, 0.05f), 0.05f, 0.35f);
+    }
+
+    /// <summary>Solid slab the playing surface sits on, so the board looks thick from the side.</summary>
+    private void CreateBoardBody(GameObject parent)
+    {
+        float outer = boardSize + borderWidth * 2f;
+        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        body.name = "BoardBody";
+        body.transform.parent = parent.transform;
+        // Top must stay below the playing-surface cube (which ends at 0.0385).
+        body.transform.localPosition = new Vector3(0f, 0.0185f, 0f);
+        body.transform.localScale = new Vector3(outer - 0.01f, 0.037f, outer - 0.01f);
+        body.GetComponent<MeshRenderer>().sharedMaterial = CreateRosewoodMaterial();
+        RemoveCollider(body);
     }
 
     private void CreatePlayingSurface(GameObject parent)
@@ -95,23 +127,32 @@ public class BoardSetup : MonoBehaviour
 
     private void CreateWoodFrame(GameObject parent)
     {
+        float half = boardSize / 2f;
         float outerSize = boardSize + borderWidth * 2f;
+
+        // The frame body is 2.2 cm above the playing surface (ICF allows 1.9-2.54 cm).
+        float capHeight = 0.013f;
+        float bodyTop = SurfaceTopY + frameHeight - capHeight;
+        float bodyBottom = 0.012f;
+        float bodyHeight = bodyTop - bodyBottom;
+        float bodyCenterY = bodyBottom + bodyHeight / 2f;
 
         string[] frameNames = { "Frame_Top", "Frame_Bottom", "Frame_Left", "Frame_Right" };
         Vector3[] positions = {
-            new Vector3(0, boardThickness / 2f, boardSize / 2f + borderWidth / 2f),
-            new Vector3(0, boardThickness / 2f, -(boardSize / 2f + borderWidth / 2f)),
-            new Vector3(-(boardSize / 2f + borderWidth / 2f), boardThickness / 2f, 0),
-            new Vector3(boardSize / 2f + borderWidth / 2f, boardThickness / 2f, 0)
+            new Vector3(0, bodyCenterY, half + borderWidth / 2f),
+            new Vector3(0, bodyCenterY, -(half + borderWidth / 2f)),
+            new Vector3(-(half + borderWidth / 2f), bodyCenterY, 0),
+            new Vector3(half + borderWidth / 2f, bodyCenterY, 0)
         };
         Vector3[] scales = {
-            new Vector3(outerSize, frameHeight, borderWidth),
-            new Vector3(outerSize, frameHeight, borderWidth),
-            new Vector3(borderWidth, frameHeight, outerSize),
-            new Vector3(borderWidth, frameHeight, outerSize)
+            new Vector3(outerSize, bodyHeight, borderWidth),
+            new Vector3(outerSize, bodyHeight, borderWidth),
+            new Vector3(borderWidth, bodyHeight, outerSize),
+            new Vector3(borderWidth, bodyHeight, outerSize)
         };
 
         Material frameMat = CreateRosewoodMaterial();
+        frameMat.color = new Color(0.86f, 0.80f, 0.76f);
 
         for (int i = 0; i < 4; i++)
         {
@@ -123,16 +164,56 @@ public class BoardSetup : MonoBehaviour
             frame.GetComponent<MeshRenderer>().sharedMaterial = frameMat;
         }
 
-        CreateInnerRim(parent, new Color(0.16f, 0.07f, 0.03f));
+        CreateFrameCap(parent, capHeight);
         CreateFrameInlay(parent);
+        CreateInnerLip(parent);
     }
 
-    /// <summary>Brass pinstripe around the frame, like an inlaid carrom board.</summary>
+    /// <summary>Slightly lighter, slightly proud top rail that gives the frame its bevel.</summary>
+    private void CreateFrameCap(GameObject parent, float capHeight)
+    {
+        float half = boardSize / 2f;
+        float capTop = SurfaceTopY + frameHeight;
+        float capCenterY = capTop - capHeight / 2f;
+        float capWidth = borderWidth + 0.008f;
+        float capSize = boardSize + capWidth * 2f;
+        float axis = half + borderWidth / 2f + 0.004f;
+
+        Material capMat = CreateRosewoodMaterial();
+        capMat.color = new Color(1.02f, 0.96f, 0.90f);
+
+        Vector3[] positions = {
+            new Vector3(0, capCenterY, axis),
+            new Vector3(0, capCenterY, -axis),
+            new Vector3(-axis, capCenterY, 0),
+            new Vector3(axis, capCenterY, 0)
+        };
+        Vector3[] scales = {
+            new Vector3(capSize, capHeight, capWidth),
+            new Vector3(capSize, capHeight, capWidth),
+            new Vector3(capWidth, capHeight, capSize),
+            new Vector3(capWidth, capHeight, capSize)
+        };
+
+        for (int i = 0; i < 4; i++)
+        {
+            GameObject cap = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cap.name = "FrameCap_" + i;
+            cap.transform.parent = parent.transform;
+            cap.transform.localPosition = positions[i];
+            cap.transform.localScale = scales[i];
+            cap.GetComponent<MeshRenderer>().sharedMaterial = capMat;
+            RemoveCollider(cap);
+        }
+    }
+
+    /// <summary>Brass pinstripe + mitre joints on the frame top, like an inlaid carrom board.</summary>
     private void CreateFrameInlay(GameObject parent)
     {
-        float y = boardThickness / 2f + frameHeight * 0.5f + 0.001f;
-        float inset = 0.028f;
-        float dist = boardSize / 2f + borderWidth * 0.5f;
+        float half = boardSize / 2f;
+        float capTop = SurfaceTopY + frameHeight;
+        float inset = 0.075f;
+        float dist = half + inset;
         float length = boardSize + borderWidth * 2f - inset * 2f;
         Material brass = CreateBrassMaterial();
 
@@ -144,405 +225,381 @@ public class BoardSetup : MonoBehaviour
             strip.transform.parent = parent.transform;
             strip.transform.localPosition = new Vector3(
                 horizontal ? 0f : (i == 2 ? -dist : dist),
-                y,
+                capTop + 0.0015f,
                 horizontal ? (i == 0 ? dist : -dist) : 0f);
             strip.transform.localScale = horizontal
-                ? new Vector3(length, 0.003f, 0.012f)
-                : new Vector3(0.012f, 0.003f, length);
+                ? new Vector3(length, 0.002f, 0.009f)
+                : new Vector3(0.009f, 0.002f, length);
             strip.GetComponent<MeshRenderer>().sharedMaterial = brass;
             RemoveCollider(strip);
         }
+
+        // Mitre joints at the four corners.
+        Material joint = CreateMaterial(new Color(0.12f, 0.06f, 0.035f), 0.05f, 0.45f);
+        float jointLength = borderWidth * 1.35f;
+        for (int i = 0; i < 4; i++)
+        {
+            float sx = (i == 0 || i == 3) ? -1f : 1f;
+            float sz = (i < 2) ? 1f : -1f;
+
+            GameObject mitre = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            mitre.name = "Mitre_" + i;
+            mitre.transform.parent = parent.transform;
+            mitre.transform.localPosition = new Vector3(
+                sx * (half + borderWidth * 0.5f),
+                capTop + 0.0026f,
+                sz * (half + borderWidth * 0.5f));
+            mitre.transform.localRotation = Quaternion.Euler(0f, sx * sz * 45f, 0f);
+            mitre.transform.localScale = new Vector3(0.007f, 0.001f, jointLength);
+            mitre.GetComponent<MeshRenderer>().sharedMaterial = joint;
+            RemoveCollider(mitre);
+        }
     }
 
-    private void CreateInnerRim(GameObject parent, Color rimColor)
+    /// <summary>Shadow chamfer where the frame meets the playing surface.</summary>
+    private void CreateInnerLip(GameObject parent)
     {
-        float rimWidth = 0.025f;
-        float innerSize = boardSize - rimWidth * 2f;
+        float half = boardSize / 2f;
+        float y = SurfaceTopY + 0.006f;
+        float length = boardSize - 0.004f;
+        float lip = 0.018f;
+        Material lipMat = CreateMaterial(new Color(0.10f, 0.045f, 0.025f), 0.15f, 0.55f);
 
-        string[] rimNames = { "Rim_Top", "Rim_Bottom", "Rim_Left", "Rim_Right" };
         Vector3[] positions = {
-            new Vector3(0, boardThickness / 2f + 0.003f, boardSize / 2f - rimWidth / 2f),
-            new Vector3(0, boardThickness / 2f + 0.003f, -(boardSize / 2f - rimWidth / 2f)),
-            new Vector3(-(boardSize / 2f - rimWidth / 2f), boardThickness / 2f + 0.003f, 0),
-            new Vector3(boardSize / 2f - rimWidth / 2f, boardThickness / 2f + 0.003f, 0)
+            new Vector3(0, y, half + lip / 2f - 0.001f),
+            new Vector3(0, y, -(half + lip / 2f - 0.001f)),
+            new Vector3(-(half + lip / 2f - 0.001f), y, 0),
+            new Vector3(half + lip / 2f - 0.001f, y, 0)
         };
         Vector3[] scales = {
-            new Vector3(innerSize, 0.006f, rimWidth),
-            new Vector3(innerSize, 0.006f, rimWidth),
-            new Vector3(rimWidth, 0.006f, innerSize),
-            new Vector3(rimWidth, 0.006f, innerSize)
+            new Vector3(length, 0.012f, lip),
+            new Vector3(length, 0.012f, lip),
+            new Vector3(lip, 0.012f, length),
+            new Vector3(lip, 0.012f, length)
         };
 
         for (int i = 0; i < 4; i++)
         {
-            GameObject rim = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            rim.name = rimNames[i];
-            rim.transform.parent = parent.transform;
-            rim.transform.localPosition = positions[i];
-            rim.transform.localScale = scales[i];
-
-            Material rimMat = CreateMaterial(new Color(0.24f, 0.10f, 0.045f), 0.08f, 0.65f);
-            rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
-            RemoveCollider(rim);
+            GameObject strip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            strip.name = "InnerLip_" + i;
+            strip.transform.parent = parent.transform;
+            strip.transform.localPosition = positions[i];
+            strip.transform.localScale = scales[i];
+            strip.GetComponent<MeshRenderer>().sharedMaterial = lipMat;
+            RemoveCollider(strip);
         }
     }
 
     private void CreatePockets(GameObject parent)
     {
         Vector3[] pocketPositions = CalculatePocketPositions();
-        Material pocketMat = CreateMaterial(new Color(0.015f, 0.012f, 0.01f), 0.15f, 0.35f);
+
+        Material holeMat = CreateMaterial(new Color(0.012f, 0.010f, 0.008f), 0.0f, 0.25f);
         Material rimMat = CreateBrassMaterial();
+        Material throatMat = CreateMaterial(new Color(0.10f, 0.065f, 0.04f), 0.15f, 0.55f);
 
         for (int i = 0; i < 4; i++)
         {
             GameObject pocketGroup = new GameObject($"Pocket{i}");
             pocketGroup.transform.parent = parent.transform;
-            pocketGroup.transform.position = pocketPositions[i];
+            pocketGroup.transform.localPosition = new Vector3(pocketPositions[i].x, 0f, pocketPositions[i].z);
+
+            float holeTop = SurfaceTopY + 0.0005f;
+            float holeHeight = 0.07f;
 
             GameObject pocketHole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pocketHole.name = "Hole";
             pocketHole.transform.parent = pocketGroup.transform;
-            pocketHole.transform.localPosition = new Vector3(0, -0.005f, 0);
-            pocketHole.transform.localScale = new Vector3(pocketRadius * 2f, 0.02f, pocketRadius * 2f);
-            pocketHole.GetComponent<MeshRenderer>().sharedMaterial = pocketMat;
+            pocketHole.transform.localPosition = new Vector3(0, holeTop - holeHeight / 2f, 0);
+            pocketHole.transform.localScale = new Vector3(pocketRadius * 2f, holeHeight / 2f, pocketRadius * 2f);
+            pocketHole.GetComponent<MeshRenderer>().sharedMaterial = holeMat;
             RemoveCollider(pocketHole);
 
-            GameObject pocketRim = CreateTorusRing(pocketGroup.transform, pocketRadius, pocketRimWidth, rimMat);
-            pocketRim.name = "Rim";
-            pocketRim.transform.localPosition = new Vector3(0, 0.004f, 0);
+            // Subtle inner throat ring: sells the depth of the hole.
+            GameObject throat = CreateTorusRing(pocketGroup.transform, pocketRadius * 0.80f,
+                0.007f, throatMat);
+            throat.name = "Throat";
+            throat.transform.localPosition = new Vector3(0, holeTop + 0.0008f, 0);
 
-            GameObject pocketInner = CreateTorusRing(pocketGroup.transform, pocketRadius * 0.92f,
-                pocketRimWidth * 0.45f, CreateMaterial(new Color(0.09f, 0.065f, 0.04f), 0.4f, 0.75f));
-            pocketInner.name = "InnerRim";
-            pocketInner.transform.localPosition = new Vector3(0, 0.002f, 0);
+            GameObject pocketRim = CreateTorusRing(pocketGroup.transform,
+                pocketRadius + pocketRimWidth * 0.5f, pocketRimWidth, rimMat);
+            pocketRim.name = "Rim";
+            pocketRim.transform.localPosition = new Vector3(0, SurfaceTopY + 0.0025f, 0);
 
             SphereCollider pocketCollider = pocketGroup.AddComponent<SphereCollider>();
-            pocketCollider.radius = pocketRadius;
+            pocketCollider.radius = pocketRadius * 0.98f;
             pocketCollider.isTrigger = true;
+            pocketCollider.center = new Vector3(0f, SurfaceTopY + 0.015f, 0f);
 
             PocketTrigger pocketTrigger = pocketGroup.AddComponent<PocketTrigger>();
             pocketTrigger.coinLayer = coinLayer;
             pocketTrigger.pocketRadius = pocketRadius;
-
-            GameObject pocketLight = new GameObject("PocketGlow");
-            pocketLight.transform.parent = pocketGroup.transform;
-            pocketLight.transform.localPosition = new Vector3(0, -0.01f, 0);
-            Light pLight = pocketLight.AddComponent<Light>();
-            pLight.type = LightType.Point;
-            pLight.color = new Color(1f, 0.85f, 0.3f);
-            pLight.intensity = 0.3f;
-            pLight.range = 0.15f;
         }
     }
 
     private void CreateCenterDesign(GameObject parent)
     {
-        float surfaceY = boardThickness / 2f + 0.003f;
-        Color lineColor = new Color(0.24f, 0.14f, 0.07f);
-        Color redColor = new Color(0.62f, 0.11f, 0.09f);
+        float y = SurfaceTopY + 0.0008f;
+        float y2 = y + 0.0003f;
+        float y3 = y2 + 0.0003f;
 
-        CreateCircleOnBoard(parent, "CenterCircle_Outer", centerCircleRadius, surfaceY,
-            lineColor, 0.010f);
-        CreateCircleOnBoard(parent, "CenterCircle_Mid", centerCircleRadius * 0.78f, surfaceY,
-            redColor, 0.008f);
-        CreateCircleOnBoard(parent, "CenterCircle_Inner", innerCircleRadius, surfaceY,
-            lineColor, 0.008f);
+        // ICF outer circle: 17 cm diameter.
+        AddRing(parent.transform, "OuterCircle", 0f, 0f, outerCircleRadius - 0.0075f,
+            outerCircleRadius, y, LineBlack);
+        AddRing(parent.transform, "OuterCircleInner", 0f, 0f, outerCircleRadius - 0.032f,
+            outerCircleRadius - 0.028f, y2, LineRedDark);
 
-        // Sixteen-petal rosette, the classic carrom centre motif: radial ticks
-        // between the inner disc and the outer circle, alternating length.
-        for (int i = 0; i < 16; i++)
+        // Fine decorative ring inside the outer circle.
+        AddRing(parent.transform, "DecoRing", 0f, 0f, outerCircleRadius - 0.040f,
+            outerCircleRadius - 0.036f, y2, LineRedDark);
+
+        // Classic rosette: sixteen tapered petals alternating red and black,
+        // held clear of the central red disc by a small inner ring.
+        const int petals = 16;
+        for (int i = 0; i < petals; i++)
         {
-            float angle = i * Mathf.PI * 2f / 16f;
+            float angle = i * Mathf.PI * 2f / petals;
             bool major = i % 2 == 0;
-            float inner = innerCircleRadius + 0.006f;
-            float outer = major ? centerCircleRadius * 0.74f : centerCircleRadius * 0.60f;
-            float mid = (inner + outer) * 0.5f;
-
-            GameObject petal = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            petal.name = "Petal_" + i;
-            petal.transform.parent = parent.transform;
-            petal.transform.position = new Vector3(
-                Mathf.Cos(angle) * mid, surfaceY + 0.0004f, Mathf.Sin(angle) * mid);
-            petal.transform.rotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, 0f);
-            petal.transform.localScale = new Vector3(outer - inner, 0.0012f,
-                major ? 0.008f : 0.005f);
-            petal.GetComponent<MeshRenderer>().sharedMaterial =
-                CreateMaterial(major ? redColor : lineColor, 0.1f, 0.5f);
-            RemoveCollider(petal);
+            float inner = 0.106f;
+            float outer = major ? outerCircleRadius - 0.050f : outerCircleRadius - 0.090f;
+            AddSpoke(parent.transform, "Petal_" + i, inner, outer,
+                major ? 0.030f : 0.017f, major ? 0.009f : 0.006f,
+                angle, y3, major ? LineRed : LineBlack);
         }
 
-        CreateCircleOnBoard(parent, "CenterDot_Main", smallCircleRadius * 1.3f, surfaceY,
-            redColor, 0.008f);
+        AddRing(parent.transform, "InnerCircle", 0f, 0f, 0.100f, 0.106f, y3, LineBlack);
+        AddRing(parent.transform, "InnerCircle2", 0f, 0f, 0.072f, 0.076f, y3, LineRedDark);
+
+        // ICF centre circle: 3.18 cm black outline, 2.54 cm red heart.
+        AddDisc(parent.transform, "CentreOutline", 0f, 0f, centerCircleRadius, y2, LineBlack, 0.0012f);
+        AddDisc(parent.transform, "CentreRed", 0f, 0f, baseRedRadius, y3, LineRed, 0.0012f);
     }
 
     private void CreateBaseLines(GameObject parent)
     {
-        float surfaceY = boardThickness / 2f + 0.003f;
-        float lineLength = 0.54f;
-        float lineThickness = 0.009f;
-        float gap = 0.062f;
-
-        Color lineColor = new Color(0.22f, 0.13f, 0.06f);
-        Color redColor = new Color(0.62f, 0.11f, 0.09f);
-
-        Vector3[] basePositions = {
-            new Vector3(0, surfaceY, baseLineDistance),
-            new Vector3(0, surfaceY, -baseLineDistance),
-            new Vector3(baseLineDistance, surfaceY, 0),
-            new Vector3(-baseLineDistance, surfaceY, 0)
+        // Group 0: far side (+z). 1: near side (-z). 2: left. 3: right.
+        Vector3[] positions = {
+            new Vector3(0f, 0f, baseLineDistance),
+            new Vector3(0f, 0f, -baseLineDistance),
+            new Vector3(-baseLineDistance, 0f, 0f),
+            new Vector3(baseLineDistance, 0f, 0f)
         };
+        float[] rotations = { 0f, 180f, 90f, -90f };
+
+        float y = SurfaceTopY + 0.0006f;
+        float lineThickness = 0.020f;
+        float circleX = baseLineLength * 0.5f - baseCircleRadius;
 
         for (int i = 0; i < 4; i++)
         {
             GameObject group = new GameObject($"BaseLine_{i}");
             group.transform.parent = parent.transform;
-            group.transform.position = basePositions[i];
+            group.transform.localPosition = positions[i];
+            group.transform.localRotation = Quaternion.Euler(0f, rotations[i], 0f);
 
-            bool isHorizontal = i < 2;
-            group.transform.rotation = Quaternion.Euler(0, isHorizontal ? 0 : 90f, 0);
-
-            // Standard carrom base: two parallel lines with red end circles.
             for (int side = -1; side <= 1; side += 2)
             {
-                GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                line.name = "Line";
-                line.transform.parent = group.transform;
-                line.transform.localPosition = new Vector3(0f, 0.001f, side * gap * 0.5f);
-                line.transform.localScale = new Vector3(lineLength, 0.002f, lineThickness);
-                line.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(lineColor, 0.1f, 0.5f);
-                RemoveCollider(line);
+                AddQuad(group.transform, "Line", 0f, side * baseLineGap * 0.5f,
+                    baseLineLength, lineThickness, y, LineBlack);
             }
 
-            CreateBaseDisc(group.transform, new Vector3(-lineLength * 0.5f, 0.0012f, 0f), 0.024f, redColor);
-            CreateBaseDisc(group.transform, new Vector3(lineLength * 0.5f, 0.0012f, 0f), 0.024f, redColor);
-
-            CreateArcAtBase(group, isHorizontal, surfaceY);
+            // Base circles: 3.18 cm black ring, 2.54 cm red heart, tangent to
+            // both base lines and to the adjacent side's base lines.
+            for (int end = -1; end <= 1; end += 2)
+            {
+                float cx = end * circleX;
+                AddDisc(group.transform, "BaseCircle", cx, 0f, baseCircleRadius,
+                    y + 0.0002f, LineBlack, 0.0012f);
+                AddDisc(group.transform, "BaseCircleRed", cx, 0f, baseRedRadius,
+                    y + 0.0005f, LineRed, 0.0012f);
+            }
         }
     }
 
-    private void CreateBaseDisc(Transform parent, Vector3 localPos, float radius, Color color)
+    /// <summary>
+    /// Four ICF corner arrows: 45 degrees, through the gap between the two
+    /// base circles, pointing at the pocket and stopping 5 cm short of it.
+    /// </summary>
+    private void CreateCornerArrows(GameObject parent)
+    {
+        float y = SurfaceTopY + 0.0011f;
+
+        for (int i = 0; i < 4; i++)
+        {
+            float sx = (i == 0 || i == 3) ? -1f : 1f;
+            float sz = (i < 2) ? 1f : -1f;
+
+            // Start in the gap between the corner's two base circles.
+            float circleX = baseLineLength * 0.5f - baseCircleRadius;
+            Vector2 gap = new Vector2(
+                sx * (circleX + baseLineDistance) * 0.5f,
+                sz * (circleX + baseLineDistance) * 0.5f);
+
+            Vector2 pocket = new Vector2(
+                sx * (boardSize / 2f - pocketRadius - PocketInset),
+                sz * (boardSize / 2f - pocketRadius - PocketInset));
+
+            Vector2 dir = (pocket - gap).normalized;
+            Vector2 end = pocket - dir * (pocketRadius + 0.196f);
+            Vector2 start = end - dir * Mathf.Min(arrowLength, Vector2.Distance(gap, end));
+
+            AddArrow(parent.transform, "CornerArrow_" + i, start, end, arrowWidth,
+                arrowWidth * 2.6f, 0.075f, y, LineBlack);
+        }
+    }
+
+    private const float PocketInset = 0.006f;
+
+    private Vector3[] CalculatePocketPositions()
+    {
+        float p = boardSize / 2f - pocketRadius - PocketInset;
+        return new Vector3[]
+        {
+            new Vector3(-p, 0f, p),
+            new Vector3(p, 0f, p),
+            new Vector3(-p, 0f, -p),
+            new Vector3(p, 0f, -p)
+        };
+    }
+
+    // ---------------------------------------------------------------- markings
+
+    private void AddQuad(Transform parent, string name, float cx, float cz,
+        float width, float length, float y, Color color)
+    {
+        Vector3[] verts = {
+            new Vector3(cx - width * 0.5f, y, cz - length * 0.5f),
+            new Vector3(cx - width * 0.5f, y, cz + length * 0.5f),
+            new Vector3(cx + width * 0.5f, y, cz + length * 0.5f),
+            new Vector3(cx + width * 0.5f, y, cz - length * 0.5f)
+        };
+        int[] tris = { 0, 1, 2, 0, 2, 3 };
+        AddFlatMesh(parent, name, verts, tris, color);
+    }
+
+    private void AddDisc(Transform parent, string name, float cx, float cz,
+        float radius, float y, Color color, float thickness)
     {
         GameObject disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        disc.name = "BaseDisc";
-        disc.transform.parent = parent;
-        disc.transform.localPosition = localPos;
-        disc.transform.localScale = new Vector3(radius * 2f, 0.0008f, radius * 2f);
-        disc.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.55f);
+        disc.name = name;
+        disc.transform.SetParent(parent, false);
+        disc.transform.localPosition = new Vector3(cx, y + thickness * 0.5f, cz);
+        disc.transform.localScale = new Vector3(radius * 2f, thickness * 0.5f, radius * 2f);
+        disc.GetComponent<MeshRenderer>().sharedMaterial = CreateMarkingMaterial(color);
         RemoveCollider(disc);
     }
 
-    private void CreateOuterLines(GameObject parent)
+    private void AddRing(Transform parent, string name, float cx, float cz,
+        float inner, float outer, float y, Color color)
     {
-        float surfaceY = boardThickness / 2f + 0.003f;
-        float offset = 0.06f;
-
-        float outerDist = boardSize / 2f - offset;
-        float lineThickness = 0.008f;
-
-        Vector3[] outerPositions = {
-            new Vector3(0, surfaceY, outerDist),
-            new Vector3(0, surfaceY, -outerDist),
-            new Vector3(outerDist, surfaceY, 0),
-            new Vector3(-outerDist, surfaceY, 0)
-        };
-
-        for (int i = 0; i < 4; i++)
-        {
-            GameObject line = new GameObject($"OuterLine_{i}");
-            line.transform.parent = parent.transform;
-            line.transform.position = outerPositions[i];
-
-            bool isHorizontal = i < 2;
-            line.transform.rotation = Quaternion.Euler(0, isHorizontal ? 0 : 90f, 0);
-
-            float segLength = boardSize - offset * 4f;
-            CreateLineSegment(line, segLength, lineThickness, surfaceY, new Color(0.26f, 0.16f, 0.08f));
-        }
-    }
-
-    private void CreateArrowMarkers(GameObject parent)
-    {
-        float surfaceY = boardThickness / 2f + 0.003f;
-        Color arrowColor = new Color(0.30f, 0.18f, 0.09f);
-
-        Vector3[] arrowPositions = {
-            new Vector3(0, surfaceY, baseLineDistance + 0.05f),
-            new Vector3(0, surfaceY, -(baseLineDistance + 0.05f)),
-            new Vector3(baseLineDistance + 0.05f, surfaceY, 0),
-            new Vector3(-(baseLineDistance + 0.05f), surfaceY, 0)
-        };
-
-        float[] arrowRotations = { 0f, 180f, 270f, 90f };
-
-        for (int i = 0; i < 4; i++)
-        {
-            GameObject arrowGroup = new GameObject($"Arrow_{i}");
-            arrowGroup.transform.parent = parent.transform;
-            arrowGroup.transform.position = arrowPositions[i];
-            arrowGroup.transform.rotation = Quaternion.Euler(0, arrowRotations[i], 0);
-
-            CreateArrowShape(arrowGroup, arrowLength, surfaceY, arrowColor);
-        }
-    }
-
-    private void CreateCornerDecorations(GameObject parent)
-    {
-        float surfaceY = boardThickness / 2f + 0.003f;
-        float cornerOffset = boardSize / 2f - 0.03f;
-        Color decorColor = new Color(0.85f, 0.75f, 0.2f);
-
-        Vector3[] corners = {
-            new Vector3(-cornerOffset, surfaceY, cornerOffset),
-            new Vector3(cornerOffset, surfaceY, cornerOffset),
-            new Vector3(-cornerOffset, surfaceY, -cornerOffset),
-            new Vector3(cornerOffset, surfaceY, -cornerOffset)
-        };
-
-        for (int i = 0; i < 4; i++)
-        {
-            CreateSmallDot(parent, $"CornerDecor_{i}", corners[i], 0.01f, decorColor);
-        }
-    }
-
-    private void CreateCircleOnBoard(GameObject parent, string name, float radius, float y, Color color, float thickness)
-    {
-        GameObject circle = new GameObject(name);
-        circle.transform.parent = parent.transform;
-        circle.transform.position = new Vector3(0, y, 0);
-
-        int segments = 48;
-        Vector3[] vertices = new Vector3[segments * 2 + 2];
-        int[] triangles = new int[segments * 6];
+        const int segments = 72;
+        Vector3[] verts = new Vector3[(segments + 1) * 2];
+        int[] tris = new int[segments * 6];
 
         for (int i = 0; i <= segments; i++)
         {
             float angle = (float)i / segments * Mathf.PI * 2f;
             float cos = Mathf.Cos(angle);
             float sin = Mathf.Sin(angle);
-
-            vertices[i * 2] = new Vector3(cos * radius, 0, sin * radius);
-            vertices[i * 2 + 1] = new Vector3(cos * (radius + thickness), 0, sin * (radius + thickness));
+            verts[i * 2] = new Vector3(cx + cos * inner, y, cz + sin * inner);
+            verts[i * 2 + 1] = new Vector3(cx + cos * outer, y, cz + sin * outer);
         }
 
         for (int i = 0; i < segments; i++)
         {
-            int baseIdx = i * 6;
-            int vIdx = i * 2;
-
-            triangles[baseIdx] = vIdx;
-            triangles[baseIdx + 1] = vIdx + 1;
-            triangles[baseIdx + 2] = vIdx + 2;
-
-            triangles[baseIdx + 3] = vIdx + 1;
-            triangles[baseIdx + 4] = vIdx + 3;
-            triangles[baseIdx + 5] = vIdx + 2;
+            int v = i * 2;
+            int t = i * 6;
+            tris[t] = v;
+            tris[t + 1] = v + 2;
+            tris[t + 2] = v + 1;
+            tris[t + 3] = v + 1;
+            tris[t + 4] = v + 2;
+            tris[t + 5] = v + 3;
         }
 
-        Mesh mesh = new Mesh();
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.RecalculateNormals();
-
-        MeshFilter mf = circle.AddComponent<MeshFilter>();
-        mf.sharedMesh = mesh;
-
-        MeshRenderer mr = circle.AddComponent<MeshRenderer>();
-        mr.sharedMaterial = CreateMaterial(color, 0.1f, 0.5f);
+        AddFlatMesh(parent, name, verts, tris, color);
     }
 
-    private void CreateSmallDot(GameObject parent, string name, Vector3 pos, float radius, Color color)
+    private void AddSpoke(Transform parent, string name, float r0, float r1,
+        float width0, float width1, float angle, float y, Color color)
     {
-        GameObject dot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        dot.name = name;
-        dot.transform.parent = parent.transform;
-        dot.transform.position = pos;
-        dot.transform.localScale = new Vector3(radius * 2f, 0.001f, radius * 2f);
-        dot.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.5f);
-        RemoveCollider(dot);
+        Vector2 dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+        Vector2 perp = new Vector2(-dir.y, dir.x);
+        Vector2 outer0 = dir * r0;
+        Vector2 outer1 = dir * r1;
+
+        Vector3[] verts = {
+            new Vector3(outer0.x + perp.x * width0 * 0.5f, y, outer0.y + perp.y * width0 * 0.5f),
+            new Vector3(outer1.x + perp.x * width1 * 0.5f, y, outer1.y + perp.y * width1 * 0.5f),
+            new Vector3(outer1.x - perp.x * width1 * 0.5f, y, outer1.y - perp.y * width1 * 0.5f),
+            new Vector3(outer0.x - perp.x * width0 * 0.5f, y, outer0.y - perp.y * width0 * 0.5f)
+        };
+        int[] tris = { 0, 1, 2, 0, 2, 3 };
+        AddFlatMesh(parent, name, verts, tris, color);
     }
 
-    private void CreateLineSegment(GameObject parent, float length, float thickness, float y, Color color)
+    private void AddArrow(Transform parent, string name, Vector2 from, Vector2 to,
+        float shaftWidth, float headWidth, float headLength, float y, Color color)
     {
-        GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        line.name = "Line";
-        line.transform.parent = parent.transform;
-        line.transform.localPosition = new Vector3(0, 0.001f, 0);
-        line.transform.localScale = new Vector3(length, 0.002f, thickness);
-        line.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.5f);
-        RemoveCollider(line);
+        Vector2 dir = (to - from).normalized;
+        Vector2 perp = new Vector2(-dir.y, dir.x);
+        Vector2 headBase = to - dir * headLength;
+        Vector2 shoulder0 = from + perp * shaftWidth * 0.5f;
+        Vector2 shoulder1 = headBase + perp * shaftWidth * 0.5f;
+        Vector2 shoulder2 = headBase - perp * shaftWidth * 0.5f;
+        Vector2 shoulder3 = from - perp * shaftWidth * 0.5f;
+        Vector2 wing0 = headBase + perp * headWidth * 0.5f;
+        Vector2 wing1 = headBase - perp * headWidth * 0.5f;
+
+        Vector3[] verts = {
+            new Vector3(shoulder0.x, y, shoulder0.y),
+            new Vector3(shoulder1.x, y, shoulder1.y),
+            new Vector3(shoulder2.x, y, shoulder2.y),
+            new Vector3(shoulder3.x, y, shoulder3.y),
+            new Vector3(wing0.x, y, wing0.y),
+            new Vector3(wing1.x, y, wing1.y),
+            new Vector3(to.x, y, to.y)
+        };
+
+        // Shaft (quad), then head (wing0, wing1, tip).
+        int[] tris = {
+            0, 1, 2, 0, 2, 3,
+            4, 5, 6
+        };
+
+        AddFlatMesh(parent, name, verts, tris, color);
     }
 
-    private void CreateArcAtBase(GameObject parent, bool horizontal, float y)
+    private void AddFlatMesh(Transform parent, string name, Vector3[] verts,
+        int[] tris, Color color)
     {
-        float arcRadius = 0.08f;
-        int segments = 24;
-
-        Vector3[] verts = new Vector3[segments + 1];
-        int[] tris = new int[segments * 3];
-
-        for (int i = 0; i <= segments; i++)
-        {
-            float angle = ((float)i / segments - 0.5f) * Mathf.PI;
-            float xPos = Mathf.Cos(angle) * arcRadius;
-            float zPos = Mathf.Sin(angle) * arcRadius * 0.3f;
-            verts[i] = new Vector3(xPos, 0.002f, zPos);
-        }
-
-        for (int i = 0; i < segments; i++)
-        {
-            tris[i * 3] = 0;
-            tris[i * 3 + 1] = i;
-            tris[i * 3 + 2] = i + 1;
-        }
+        GameObject go = new GameObject(name);
+        go.transform.SetParent(parent, false);
 
         Mesh mesh = new Mesh();
         mesh.vertices = verts;
         mesh.triangles = tris;
         mesh.RecalculateNormals();
 
-        GameObject arc = new GameObject("Arc");
-        arc.transform.parent = parent.transform;
-        arc.AddComponent<MeshFilter>().sharedMesh = mesh;
-        arc.AddComponent<MeshRenderer>().sharedMaterial = CreateMaterial(new Color(0.62f, 0.11f, 0.09f), 0.1f, 0.5f);
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        go.AddComponent<MeshRenderer>().sharedMaterial = CreateMarkingMaterial(color);
     }
 
-    private void CreateArrowShape(GameObject parent, float length, float y, Color color)
+    private Material CreateMarkingMaterial(Color color)
     {
-        float w = 0.03f;
-        Mesh mesh = new Mesh();
-        mesh.vertices = new Vector3[]
-        {
-            new Vector3(0, 0, 0),
-            new Vector3(-w, 0, length),
-            new Vector3(0, 0, length * 0.7f),
-            new Vector3(w, 0, length)
-        };
-        mesh.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
-        mesh.RecalculateNormals();
-
-        GameObject arrow = new GameObject("ArrowShape");
-        arrow.transform.parent = parent.transform;
-        arrow.transform.localPosition = new Vector3(0, 0.003f, 0);
-        arrow.AddComponent<MeshFilter>().sharedMesh = mesh;
-        arrow.AddComponent<MeshRenderer>().sharedMaterial = CreateMaterial(color, 0.1f, 0.5f);
+        // Markings are paper-thin: draw them double sided so they can never
+        // disappear from a grazing camera angle.
+        Material mat = CreateMaterial(color, 0f, 0.35f);
+        if (mat.HasProperty("_Cull")) mat.SetFloat("_Cull", 0f);
+        return mat;
     }
 
-    private Vector3[] CalculatePocketPositions()
-    {
-        float half = boardSize / 2f - pocketRadius * 0.3f;
-        return new Vector3[]
-        {
-            new Vector3(-half, boardThickness / 2f + 0.005f, half),
-            new Vector3(half, boardThickness / 2f + 0.005f, half),
-            new Vector3(-half, boardThickness / 2f + 0.005f, -half),
-            new Vector3(half, boardThickness / 2f + 0.005f, -half)
-        };
-    }
+    // ------------------------------------------------------------------- meshes
 
     private GameObject CreateTorusRing(Transform parent, float radius, float tubeRadius, Material mat)
     {
-        int segments = 32;
-        int tubeSegments = 8;
+        int segments = 48;
+        int tubeSegments = 10;
         GameObject torus = new GameObject("TorusRing");
         torus.transform.parent = parent;
 
@@ -637,15 +694,6 @@ public class BoardSetup : MonoBehaviour
         CreateFillLight(parent, new Vector3(1.9f, 1.6f, 1.9f), new Color(0.95f, 0.86f, 0.68f), 0.45f);
     }
 
-    private void RemoveCollider(GameObject go)
-    {
-        if (go == null) return;
-        Collider collider = go.GetComponent<Collider>();
-        if (collider == null) return;
-        collider.enabled = false;
-        Destroy(collider);
-    }
-
     private void CreateFillLight(GameObject parent, Vector3 pos, Color color, float intensity)
     {
         GameObject fillObj = new GameObject("FillLight");
@@ -659,15 +707,25 @@ public class BoardSetup : MonoBehaviour
         fill.range = 5f;
     }
 
+    private void RemoveCollider(GameObject go)
+    {
+        if (go == null) return;
+        Collider collider = go.GetComponent<Collider>();
+        if (collider == null) return;
+        collider.enabled = false;
+        Destroy(collider);
+    }
+
+    // --------------------------------------------------------------- materials
 
     private Material CreateSurfaceMaterial()
     {
-        return CreateTexturedMaterial(ProceduralTextures.GetPlywoodTexture(), 0.0f, 0.42f);
+        return CreateTexturedMaterial(ProceduralTextures.GetPlywoodTexture(), 0.0f, 0.50f);
     }
 
     private Material CreateRosewoodMaterial()
     {
-        return CreateTexturedMaterial(ProceduralTextures.GetRosewoodTexture(), 0.05f, 0.70f);
+        return CreateTexturedMaterial(ProceduralTextures.GetRosewoodTexture(), 0.05f, 0.72f);
     }
 
     private Material CreateBrassMaterial()

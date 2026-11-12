@@ -347,14 +347,6 @@ public static class UITheme
         colors.fadeDuration = 0.08f;
         button.colors = colors;
 
-        // glossy top highlight
-        Image gloss = Panel(rt, "Gloss", new Color(1f, 1f, 1f, 0.10f), radius - 4);
-        RectTransform grt = gloss.rectTransform;
-        grt.anchorMin = new Vector2(0f, 0.45f);
-        grt.anchorMax = new Vector2(1f, 1f);
-        grt.offsetMin = new Vector2(8f, 0f);
-        grt.offsetMax = new Vector2(-8f, -6f);
-
         Text text = Label(rt, "Label", label, fontSize, TextAnchor.MiddleCenter, labelColor,
             FontStyle.Bold);
         Stretch(text.rectTransform, 10f, 10f, 0f, 0f);

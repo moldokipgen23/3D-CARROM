@@ -3,7 +3,7 @@ using UnityEngine;
 public class CarromCameraController : MonoBehaviour
 {
     [Header("Camera Settings")]
-    public float cameraDistance = 7f;
+    public float cameraDistance = 6.15f;
     public float cameraHeight = 2f;
     public float cameraAngle = 70f;
     public float smoothTime = 0.3f;
@@ -17,7 +17,7 @@ public class CarromCameraController : MonoBehaviour
 
     [Header("Framing")]
     public Vector3 boardCenter = Vector3.zero;
-    public float fieldOfView = 56f;
+    public float fieldOfView = 55f;
 
     private Camera cam;
     private bool initialized = false;

@@ -130,8 +130,8 @@ public class MainMenuManager : MonoBehaviour
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-190f, -520f),
             new Vector2(340f, 112f));
 
-        Button quitButton = UITheme.Button(safe, "QuitButton", "QUIT", new Color(0.32f, 0.14f, 0.10f, 0.95f),
-            new Color(0.95f, 0.82f, 0.72f), 32, 40, false);
+        Button quitButton = UITheme.Button(safe, "QuitButton", "QUIT", UITheme.PanelSoft,
+            new Color(0.95f, 0.82f, 0.72f), 32, 40, true);
         UITheme.SetRect(quitButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(190f, -520f),
             new Vector2(340f, 112f));

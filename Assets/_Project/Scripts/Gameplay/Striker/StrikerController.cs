@@ -11,12 +11,12 @@ public class StrikerController : MonoBehaviour
     public float maxDragDistance = 1.0f;
     public float minForce = 8f;
     public float maxForce = 55f;
-    public float baselineWidth = 1.5f;
-    public float strikerRadius = 0.045f;
+    public float baselineWidth = 1.842f;
+    public float strikerRadius = 0.0809f;
 
     [Header("Table Layout")]
-    public float baselineZ = 1.1f;
-    public float strikerRestY = 0.0585f;
+    public float baselineZ = 0.99f;
+    public float strikerRestY = 0.060f;
 
     [Header("Physics Settings")]
     public PhysicsMaterial strikerPhysicsMaterial;
@@ -37,7 +37,6 @@ public class StrikerController : MonoBehaviour
     private bool isAiming = false;
     private GameObject strikerGlow;
     private GameObject aimLine;
-    private GameObject baselineTrack;
     private bool isSlidingStriker;
     private List<GameObject> aimDots;
     private List<Material> aimDotMats;
@@ -49,7 +48,6 @@ public class StrikerController : MonoBehaviour
         mainCamera = Camera.main;
         SetupPhysics();
         BuildStrikerVisual();
-        BuildBaselineTrack();
         ResetToBaseline(1);
     }
 
@@ -60,17 +58,17 @@ public class StrikerController : MonoBehaviour
         Material gold = CreateSimpleMaterial(new Color(0.94f, 0.77f, 0.34f), 0.85f, 0.95f);
 
         Cylinder("StrikerBody", ivory,
-            new Vector3(strikerRadius * 2f, 0.015f, strikerRadius * 2f), 0f);
+            new Vector3(strikerRadius * 2f, 0.0165f, strikerRadius * 2f), 0f);
         Cylinder("StrikerEdge", red,
-            new Vector3(strikerRadius * 2.18f, 0.0136f, strikerRadius * 2.18f), 0f);
+            new Vector3(strikerRadius * 2.08f, 0.0150f, strikerRadius * 2.08f), 0f);
         Cylinder("StrikerFace", ivory,
-            new Vector3(strikerRadius * 1.86f, 0.0026f, strikerRadius * 1.86f), 0.0164f);
+            new Vector3(strikerRadius * 1.88f, 0.0026f, strikerRadius * 1.88f), 0.0179f);
         Cylinder("StrikerRing", red,
-            new Vector3(strikerRadius * 1.30f, 0.0016f, strikerRadius * 1.30f), 0.0182f);
+            new Vector3(strikerRadius * 1.34f, 0.0016f, strikerRadius * 1.34f), 0.0197f);
         Cylinder("StrikerInner", ivory,
-            new Vector3(strikerRadius * 1.06f, 0.0014f, strikerRadius * 1.06f), 0.0190f);
+            new Vector3(strikerRadius * 1.10f, 0.0014f, strikerRadius * 1.10f), 0.0205f);
         Cylinder("StrikerDot", gold,
-            new Vector3(strikerRadius * 0.44f, 0.0012f, strikerRadius * 0.44f), 0.0198f);
+            new Vector3(strikerRadius * 0.46f, 0.0012f, strikerRadius * 0.46f), 0.0213f);
 
         GameObject glowObj = new GameObject("StrikerGlow");
         glowObj.transform.parent = transform;
@@ -93,37 +91,6 @@ public class StrikerController : MonoBehaviour
         go.GetComponent<MeshRenderer>().sharedMaterial = mat;
         RemoveCollider(go);
         return go;
-    }
-
-    /// <summary>Thin inlaid rail so players discover they can slide the striker.</summary>
-    private void BuildBaselineTrack()
-    {
-        if (baselineTrack != null) return;
-
-        baselineTrack = new GameObject("BaselineTrack");
-        baselineTrack.transform.position = Vector3.zero;
-
-        Material railMat = CreateSimpleMaterial(new Color(0.40f, 0.25f, 0.11f), 0.25f, 0.65f);
-        Material capMat = CreateSimpleMaterial(new Color(0.88f, 0.70f, 0.32f), 0.80f, 0.95f);
-
-        GameObject rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        rail.name = "Rail";
-        rail.transform.SetParent(baselineTrack.transform, false);
-        rail.transform.position = new Vector3(0f, 0.0436f, baselineZ);
-        rail.transform.localScale = new Vector3(baselineWidth, 0.0008f, 0.012f);
-        rail.GetComponent<MeshRenderer>().sharedMaterial = railMat;
-        RemoveCollider(rail);
-
-        for (int i = -1; i <= 1; i += 2)
-        {
-            GameObject cap = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            cap.name = "RailCap";
-            cap.transform.SetParent(baselineTrack.transform, false);
-            cap.transform.position = new Vector3(i * (baselineWidth * 0.5f + 0.02f), 0.0437f, baselineZ);
-            cap.transform.localScale = new Vector3(0.020f, 0.0006f, 0.020f);
-            cap.GetComponent<MeshRenderer>().sharedMaterial = capMat;
-            RemoveCollider(cap);
-        }
     }
 
     private Material CreateSimpleMaterial(Color color, float metallic, float smoothness)
@@ -173,7 +140,7 @@ public class StrikerController : MonoBehaviour
         if (StrikerCollider == null)
         {
             BoxCollider box = gameObject.AddComponent<BoxCollider>();
-            box.size = new Vector3(strikerRadius * 2f, 0.03f, strikerRadius * 2f);
+            box.size = new Vector3(strikerRadius * 2f, 0.033f, strikerRadius * 2f);
             box.center = Vector3.zero;
             StrikerCollider = box;
         }
@@ -256,7 +223,7 @@ public class StrikerController : MonoBehaviour
 
     private bool IsOnBaseline(Vector3 position)
     {
-        return Mathf.Abs(position.z - baselineZ) < 0.46f
+        return Mathf.Abs(position.z - baselineZ) < 0.30f
                && Mathf.Abs(position.x) < baselineWidth * 0.5f + 0.12f;
     }
 
