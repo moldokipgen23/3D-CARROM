@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -12,11 +13,13 @@ public class StrikerController : MonoBehaviour
     public float minForce = 8f;
     public float maxForce = 55f;
     public float baselineWidth = 1.842f;
-    public float strikerRadius = 0.0809f;
+    public float strikerRadius = 0.0872f;
 
     [Header("Table Layout")]
     public float baselineZ = 0.99f;
-    public float strikerRestY = 0.060f;
+    public float strikerRestY = 0.072f;
+    public float strikerThickness = 0.056f;
+    public float strikerBevel = 0.012f;
 
     [Header("Physics Settings")]
     public PhysicsMaterial strikerPhysicsMaterial;
@@ -53,22 +56,25 @@ public class StrikerController : MonoBehaviour
 
     private void BuildStrikerVisual()
     {
-        Material ivory = CreateSimpleMaterial(new Color(0.97f, 0.95f, 0.90f), 0.15f, 0.90f);
-        Material red = CreateSimpleMaterial(new Color(0.70f, 0.13f, 0.11f), 0.10f, 0.85f);
-        Material gold = CreateSimpleMaterial(new Color(0.94f, 0.77f, 0.34f), 0.85f, 0.95f);
+        Material rimMat = CreateSimpleMaterial(new Color(0.95f, 0.78f, 0.34f), 0.85f, 0.95f);
+        Material faceMat = CreateSimpleMaterial(Color.white, 0.05f, 0.86f);
+        faceMat.mainTexture = ProceduralTextures.CreateStrikerFaceTexture();
 
-        Cylinder("StrikerBody", ivory,
-            new Vector3(strikerRadius * 2f, 0.0165f, strikerRadius * 2f), 0f);
-        Cylinder("StrikerEdge", red,
-            new Vector3(strikerRadius * 2.08f, 0.0150f, strikerRadius * 2.08f), 0f);
-        Cylinder("StrikerFace", ivory,
-            new Vector3(strikerRadius * 1.88f, 0.0026f, strikerRadius * 1.88f), 0.0179f);
-        Cylinder("StrikerRing", red,
-            new Vector3(strikerRadius * 1.34f, 0.0016f, strikerRadius * 1.34f), 0.0197f);
-        Cylinder("StrikerInner", ivory,
-            new Vector3(strikerRadius * 1.10f, 0.0014f, strikerRadius * 1.10f), 0.0205f);
-        Cylinder("StrikerDot", gold,
-            new Vector3(strikerRadius * 0.46f, 0.0012f, strikerRadius * 0.46f), 0.0213f);
+        GameObject body = new GameObject("StrikerBody");
+        body.transform.SetParent(transform, false);
+
+        MeshFilter filter = body.AddComponent<MeshFilter>();
+        filter.sharedMesh = PieceMeshFactory.GetDisc(
+            "Striker", strikerRadius, strikerThickness, strikerBevel);
+
+        MeshRenderer renderer = body.AddComponent<MeshRenderer>();
+        renderer.sharedMaterials = new Material[] { rimMat, faceMat };
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        renderer.receiveShadows = true;
+
+        // Grounds the striker on the board and gives it visible thickness.
+        PieceMeshFactory.CreateContactShadow(
+            transform, strikerRadius, -strikerThickness * 0.5f + 0.0008f, 2.5f);
 
         GameObject glowObj = new GameObject("StrikerGlow");
         glowObj.transform.parent = transform;
@@ -139,10 +145,13 @@ public class StrikerController : MonoBehaviour
         StrikerCollider = GetComponent<Collider>();
         if (StrikerCollider == null)
         {
-            BoxCollider box = gameObject.AddComponent<BoxCollider>();
-            box.size = new Vector3(strikerRadius * 2f, 0.033f, strikerRadius * 2f);
-            box.center = Vector3.zero;
-            StrikerCollider = box;
+            // Convex mesh collider gives the striker a round footprint, so it
+            // deflects off coins like a disc instead of snagging on box corners.
+            MeshCollider mesh = gameObject.AddComponent<MeshCollider>();
+            mesh.convex = true;
+            mesh.sharedMesh = PieceMeshFactory.GetColliderCylinder(
+                "StrikerCollider", strikerRadius * 0.98f, strikerThickness * 0.94f);
+            StrikerCollider = mesh;
         }
 
         StrikerCollider.sharedMaterial = strikerPhysicsMaterial;
@@ -287,45 +296,75 @@ public class StrikerController : MonoBehaviour
             if (aimLine == null) return;
 
             aimLine.SetActive(true);
-
-            float power = Mathf.Clamp01(CurrentPowerNormalized);
-            float length = 0.45f + power * 1.55f;
-            float startDistance = strikerRadius * 1.35f;
-
-            Color low = new Color(0.42f, 0.92f, 0.55f);
-            Color mid = new Color(1f, 0.85f, 0.36f);
-            Color high = new Color(1f, 0.42f, 0.30f);
-            Color color = power < 0.5f
-                ? Color.Lerp(low, mid, power * 2f)
-                : Color.Lerp(mid, high, (power - 0.5f) * 2f);
-
-            Vector3 origin = transform.position + Vector3.up * 0.010f;
-
-            for (int i = 0; i < aimDots.Count; i++)
-            {
-                float t = (i + 1) / (float)aimDots.Count;
-                float distance = startDistance + t * length;
-                GameObject dot = aimDots[i];
-                dot.transform.position = origin + shotDirection * distance;
-
-                // Dots taper but stay chunky enough to read on a phone screen.
-                float size = 0.042f * (1f - 0.42f * t);
-                dot.transform.localScale = new Vector3(size, 0.0012f, size);
-
-                Material mat = aimDotMats[i];
-                Color dotColor = Color.Lerp(Color.white, color, 0.55f);
-                mat.color = dotColor;
-                if (mat.HasProperty("_EmissionColor"))
-                {
-                    mat.EnableKeyword("_EMISSION");
-                    mat.SetColor("_EmissionColor", color * 1.5f);
-                }
-            }
+            UpdateAimDots();
         }
         else if (aimLine != null)
         {
             aimLine.SetActive(false);
         }
+    }
+
+    private void UpdateAimDots()
+    {
+        float power = Mathf.Clamp01(CurrentPowerNormalized);
+        float length = 0.45f + power * 1.55f;
+        float startDistance = strikerRadius * 1.35f;
+
+        Color low = new Color(0.42f, 0.92f, 0.55f);
+        Color mid = new Color(1f, 0.85f, 0.36f);
+        Color high = new Color(1f, 0.42f, 0.30f);
+        Color color = power < 0.5f
+            ? Color.Lerp(low, mid, power * 2f)
+            : Color.Lerp(mid, high, (power - 0.5f) * 2f);
+
+        Vector3 origin = transform.position + Vector3.up * 0.010f;
+
+        for (int i = 0; i < aimDots.Count; i++)
+        {
+            float t = (i + 1) / (float)aimDots.Count;
+            float distance = startDistance + t * length;
+            GameObject dot = aimDots[i];
+            dot.transform.position = origin + shotDirection * distance;
+
+            // Dots taper but stay chunky enough to read on a phone screen.
+            float size = 0.042f * (1f - 0.42f * t);
+            dot.transform.localScale = new Vector3(size, 0.0012f, size);
+
+            Material mat = aimDotMats[i];
+            Color dotColor = Color.Lerp(Color.white, color, 0.55f);
+            mat.color = dotColor;
+            if (mat.HasProperty("_EmissionColor"))
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", color * 1.5f);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Shows the aiming dots without letting the player shoot. The AI uses this so
+    /// its shot is clearly telegraphed before the strike.
+    /// </summary>
+    public void ShowAimPreview(Vector3 worldDirection, float normalizedPower)
+    {
+        Vector3 flat = new Vector3(worldDirection.x, 0f, worldDirection.z);
+        if (flat.sqrMagnitude < 0.0001f) return;
+
+        shotDirection = flat.normalized;
+        CurrentPowerNormalized = Mathf.Clamp01(normalizedPower);
+
+        if (aimLine == null)
+            aimLine = CreateAimLine();
+        if (aimLine == null) return;
+
+        aimLine.SetActive(true);
+        UpdateAimDots();
+    }
+
+    public void HideAimPreview()
+    {
+        if (aimLine != null)
+            aimLine.SetActive(false);
     }
 
     private GameObject CreateAimLine()
@@ -391,6 +430,8 @@ public class StrikerController : MonoBehaviour
 
         Vector3 direction = new Vector3(worldDirection.x, 0f, worldDirection.z).normalized;
 
+        HideAimPreview();
+
         if (Rigidbody == null)
             Rigidbody = GetComponent<Rigidbody>();
         if (Rigidbody == null) return false;
@@ -415,7 +456,26 @@ public class StrikerController : MonoBehaviour
         if (collision.collider == null) return;
 
         if (collision.collider.GetComponent<Coin>() != null || collision.collider.CompareTag("Coin"))
+        {
             FoulDetector.Instance?.RegisterCoinTouched();
+            AbsorbCoinImpact();
+        }
+    }
+
+    /// <summary>
+    /// A carrom striker is only a few times heavier than a coin, so a clean hit
+    /// kills most of its forward momentum. Without this the striker ploughs
+    /// through the pack and follows coins straight into a pocket (a foul).
+    /// </summary>
+    private void AbsorbCoinImpact()
+    {
+        if (Rigidbody == null || Rigidbody.isKinematic) return;
+
+        Vector3 velocity = Rigidbody.linearVelocity;
+        if (velocity.sqrMagnitude < 0.01f) return;
+
+        Rigidbody.linearVelocity = velocity * 0.55f;
+        Rigidbody.angularVelocity *= 0.7f;
     }
 
     public bool IsWithinBaseline(Vector3 position)
@@ -439,6 +499,48 @@ public class StrikerController : MonoBehaviour
         pos.x = x;
         pos.y = strikerRestY;
         SetPosition(pos);
+    }
+
+    /// <summary>
+    /// Smoothly slides the striker along the baseline. Used by the AI so the
+    /// player can see it line up before the shot instead of teleporting.
+    /// </summary>
+    public IEnumerator SlideAlongBaseline(float targetX, float duration = 0.45f)
+    {
+        float half = Mathf.Max(0f, baselineWidth * 0.5f - strikerRadius);
+        targetX = Mathf.Clamp(targetX, -half, half);
+
+        Vector3 start = new Vector3(transform.position.x, strikerRestY, baselineZ);
+
+        if (Rigidbody != null)
+        {
+            Rigidbody.isKinematic = true;
+            Rigidbody.linearVelocity = Vector3.zero;
+            Rigidbody.angularVelocity = Vector3.zero;
+        }
+
+        transform.position = start;
+
+        float elapsed = 0f;
+        duration = Mathf.Max(0.05f, duration);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            transform.position = new Vector3(
+                Mathf.Lerp(start.x, targetX, t), strikerRestY, baselineZ);
+            yield return null;
+        }
+
+        transform.position = new Vector3(targetX, strikerRestY, baselineZ);
+
+        if (Rigidbody != null)
+        {
+            Rigidbody.isKinematic = false;
+            Rigidbody.linearVelocity = Vector3.zero;
+            Rigidbody.angularVelocity = Vector3.zero;
+        }
     }
 
     public void SetPosition(Vector3 pos)

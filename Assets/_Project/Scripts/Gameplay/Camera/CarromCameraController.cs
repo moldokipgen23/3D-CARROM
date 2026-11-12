@@ -16,7 +16,7 @@ public class CarromCameraController : MonoBehaviour
     public float collisionOffset = 0.1f;
 
     [Header("Framing")]
-    public Vector3 boardCenter = Vector3.zero;
+    public Vector3 boardCenter = new Vector3(0f, 0f, 0.5f);
     public float fieldOfView = 55f;
 
     private Camera cam;

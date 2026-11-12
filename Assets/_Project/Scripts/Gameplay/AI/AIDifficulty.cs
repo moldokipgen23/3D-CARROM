@@ -30,17 +30,17 @@ public static class AIDifficultySettings
         switch (difficulty)
         {
             case AIDifficulty.Easy:
-                return new AINoiseParameters(15f, 30f, 1);
+                return new AINoiseParameters(10f, 25f, 1);
             case AIDifficulty.Medium:
-                return new AINoiseParameters(8f, 15f, 1);
+                return new AINoiseParameters(5f, 12f, 1);
             case AIDifficulty.Hard:
-                return new AINoiseParameters(4f, 8f, 1);
+                return new AINoiseParameters(3f, 8f, 1);
             case AIDifficulty.Expert:
-                return new AINoiseParameters(2f, 4f, 2);
+                return new AINoiseParameters(1.8f, 4f, 2);
             case AIDifficulty.Master:
-                return new AINoiseParameters(1f, 2f, 3);
+                return new AINoiseParameters(0.8f, 2f, 3);
             default:
-                return new AINoiseParameters(15f, 30f, 1);
+                return new AINoiseParameters(5f, 12f, 1);
         }
     }
 }

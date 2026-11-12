@@ -11,9 +11,10 @@ public class CoinSpawner : MonoBehaviour
     public int blackCoinCount = 9;
 
     [Header("Coin Dimensions")]
-    public float coinRadius = 0.0623f;
-    public float coinThickness = 0.031f;
+    public float coinRadius = 0.0672f;
+    public float coinThickness = 0.040f;
     public float coinSpacing = 0.0018f;
+    public float coinBevel = 0.0085f;
 
     [Header("Spawn")]
     public Vector3[] spawnPositions = new Vector3[19];
@@ -130,15 +131,8 @@ public class CoinSpawner : MonoBehaviour
 
     private void CreateQueen(string name, Vector3 pos, Material bodyMat, Material rimMat)
     {
+        // The queen motif is printed on the face, so no extra geometry is needed.
         GameObject coinGroup = BuildCoinObject(name, pos, CoinType.Queen);
-
-        GameObject crownDot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        crownDot.name = "CrownDot";
-        crownDot.transform.parent = coinGroup.transform;
-        crownDot.transform.localPosition = new Vector3(0, coinThickness * 0.52f, 0);
-        crownDot.transform.localScale = new Vector3(coinRadius * 0.5f, coinThickness * 0.08f, coinRadius * 0.5f);
-        crownDot.GetComponent<MeshRenderer>().sharedMaterial = CreateMaterial(new Color(0.95f, 0.79f, 0.32f), 0.9f, 0.95f);
-        RemoveCollider(crownDot);
 
         Coin coinScript = coinGroup.AddComponent<Coin>();
         coinScript.Type = CoinType.Queen;
@@ -181,13 +175,12 @@ public class CoinSpawner : MonoBehaviour
                         : white ? new Color(0.97f, 0.94f, 0.87f)
                                 : new Color(0.13f, 0.11f, 0.09f);
 
-        Color rimColor = queen ? new Color(0.90f, 0.72f, 0.30f)
-                       : white ? new Color(0.78f, 0.71f, 0.56f)
-                               : new Color(0.27f, 0.21f, 0.14f);
+        Color rimColor = queen ? new Color(0.91f, 0.73f, 0.31f)
+                       : white ? new Color(0.86f, 0.79f, 0.64f)
+                               : new Color(0.30f, 0.23f, 0.15f);
 
-        Material sideMat = CreateMaterial(faceColor, 0.05f, 0.72f);
-        Material rimMat = CreateMaterial(rimColor, queen ? 0.85f : 0.45f, 0.92f);
-        Material faceMat = CreateMaterial(Color.white, 0.05f, 0.88f);
+        Material rimMat = CreateMaterial(rimColor, queen ? 0.80f : 0.35f, 0.92f);
+        Material faceMat = CreateMaterial(Color.white, 0.05f, 0.74f);
         faceMat.mainTexture = FaceTexture(type);
 
         GameObject coinGroup = new GameObject(name);
@@ -195,32 +188,23 @@ public class CoinSpawner : MonoBehaviour
         coinGroup.tag = "Coin";
         coinGroup.layer = LayerMask.NameToLayer("Default");
 
-        // Outer bevel / rim.
-        GameObject rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        rim.name = "Rim";
-        rim.transform.parent = coinGroup.transform;
-        rim.transform.localPosition = Vector3.zero;
-        rim.transform.localScale = new Vector3(coinRadius * 2.04f, coinThickness / 2f, coinRadius * 2.04f);
-        rim.GetComponent<MeshRenderer>().sharedMaterial = rimMat;
-        RemoveCollider(rim);
+        // One beveled disc mesh: a rounded rim that catches the key light plus a
+        // domed printed face. Two submeshes give the rim and face their own look.
+        GameObject body = new GameObject("Body");
+        body.transform.SetParent(coinGroup.transform, false);
 
-        // Main body.
-        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        body.name = "Body";
-        body.transform.parent = coinGroup.transform;
-        body.transform.localPosition = new Vector3(0f, 0.0002f, 0f);
-        body.transform.localScale = new Vector3(coinRadius * 2f, coinThickness / 2f * 1.01f, coinRadius * 2f);
-        body.GetComponent<MeshRenderer>().sharedMaterial = sideMat;
-        RemoveCollider(body);
+        MeshFilter filter = body.AddComponent<MeshFilter>();
+        filter.sharedMesh = PieceMeshFactory.GetDisc(
+            "Coin_" + type, coinRadius, coinThickness, coinBevel);
 
-        // Printed face.
-        GameObject face = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        face.name = "Face";
-        face.transform.parent = coinGroup.transform;
-        face.transform.localPosition = new Vector3(0f, coinThickness * 0.5f + 0.0005f, 0f);
-        face.transform.localScale = new Vector3(coinRadius * 1.9f, 0.0006f, coinRadius * 1.9f);
-        face.GetComponent<MeshRenderer>().sharedMaterial = faceMat;
-        RemoveCollider(face);
+        MeshRenderer renderer = body.AddComponent<MeshRenderer>();
+        renderer.sharedMaterials = new Material[] { rimMat, faceMat };
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        renderer.receiveShadows = true;
+
+        // Soft contact shadow so the coin sits on the board instead of floating.
+        PieceMeshFactory.CreateContactShadow(
+            coinGroup.transform, coinRadius, -coinThickness * 0.5f + 0.0008f, 2.5f);
 
         Rigidbody rb = coinGroup.AddComponent<Rigidbody>();
         rb.mass = 1f;
@@ -233,11 +217,12 @@ public class CoinSpawner : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
-        // A thin box collider behaves like a disc and rests flat on the board.
-        // Slightly under-sized so neighbouring discs in the pile never clip.
-        BoxCollider coinCollider = coinGroup.AddComponent<BoxCollider>();
-        coinCollider.size = new Vector3(coinRadius * 1.88f, coinThickness, coinRadius * 1.88f);
-        coinCollider.center = Vector3.zero;
+        // Round convex footprint: box colliders snag on their corners and make
+        // cut shots unpredictable.
+        MeshCollider coinCollider = coinGroup.AddComponent<MeshCollider>();
+        coinCollider.convex = true;
+        coinCollider.sharedMesh = PieceMeshFactory.GetColliderCylinder(
+            "CoinCollider_" + type, coinRadius * 0.98f, coinThickness);
 
         return coinGroup;
     }

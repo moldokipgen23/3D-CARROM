@@ -667,17 +667,22 @@ public class BoardSetup : MonoBehaviour
         lightingObj.transform.position = new Vector3(0, 2f, 0);
 
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.32f, 0.26f, 0.20f);
+        RenderSettings.ambientLight = new Color(0.23f, 0.19f, 0.15f);
 
         Light mainLight = lightingObj.AddComponent<Light>();
         mainLight.type = LightType.Directional;
         mainLight.color = new Color(1f, 0.96f, 0.90f);
-        mainLight.intensity = 1.25f;
+        mainLight.intensity = 1.45f;
         mainLight.shadows = LightShadows.Soft;
-        mainLight.shadowStrength = 0.55f;
-        mainLight.shadowBias = 0.035f;
-        mainLight.shadowNormalBias = 0.6f;
-        lightingObj.transform.rotation = Quaternion.Euler(52f, -28f, 0);
+        mainLight.shadowStrength = 0.62f;
+        mainLight.shadowBias = 0.012f;
+        mainLight.shadowNormalBias = 0.18f;
+        lightingObj.transform.rotation = Quaternion.Euler(46f, -32f, 0f);
+
+        // Concentrate the shadow map on the board so small pieces get clean
+        // contact shadows instead of a blurry smear.
+        QualitySettings.shadowDistance = 12f;
+        QualitySettings.shadowCascades = 4;
 
         // Warm overhead lamp: gives the varnished board and coins a soft hotspot.
         GameObject lampObj = new GameObject("OverheadLamp");
@@ -686,12 +691,12 @@ public class BoardSetup : MonoBehaviour
         Light lamp = lampObj.AddComponent<Light>();
         lamp.type = LightType.Point;
         lamp.color = new Color(1f, 0.90f, 0.76f);
-        lamp.intensity = 1.05f;
+        lamp.intensity = 0.85f;
         lamp.range = 5.0f;
         lamp.shadows = LightShadows.None;
 
-        CreateFillLight(parent, new Vector3(-1.9f, 1.6f, -1.9f), new Color(0.55f, 0.68f, 0.95f), 0.5f);
-        CreateFillLight(parent, new Vector3(1.9f, 1.6f, 1.9f), new Color(0.95f, 0.86f, 0.68f), 0.45f);
+        CreateFillLight(parent, new Vector3(-1.9f, 1.6f, -1.9f), new Color(0.55f, 0.68f, 0.95f), 0.38f);
+        CreateFillLight(parent, new Vector3(1.9f, 1.6f, 1.9f), new Color(0.95f, 0.86f, 0.68f), 0.34f);
     }
 
     private void CreateFillLight(GameObject parent, Vector3 pos, Color color, float intensity)

@@ -370,9 +370,9 @@ MonoBehaviour:
   minForce: 8
   maxForce: 55
   baselineWidth: 1.842
-  strikerRadius: 0.0809
+  strikerRadius: 0.0872
   baselineZ: 0.99
-  strikerRestY: 0.06
+  strikerRestY: 0.072
   strikerPhysicsMaterial: {fileID: 0}
   Rigidbody: {fileID: 0}
   StrikerCollider: {fileID: 0}
@@ -389,7 +389,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   difficulty: 1
-  thinkingDelay: 1
+  thinkingDelay: 1.4
   strikerController: {fileID: 940002}
   turnManager: {fileID: 0}
   scoreManager: {fileID: 0}
@@ -531,8 +531,8 @@ MonoBehaviour:
   boardThickness: 0.08
   whiteCoinCount: 9
   blackCoinCount: 9
-  coinRadius: 0.0623
-  coinThickness: 0.031
+  coinRadius: 0.0672
+  coinThickness: 0.040
   coinSpacing: 0.0018
   spawnPositions:
   - {x: 0, y: 0, z: 0}
@@ -575,7 +575,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   collisionOffset: 0.1
-  boardCenter: {x: 0, y: 0, z: 0}
+  boardCenter: {x: 0, y: 0, z: 0.5}
   fieldOfView: 55
 --- !u!114 &950005
 MonoBehaviour:

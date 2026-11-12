@@ -94,11 +94,17 @@ public static class ProceduralTextures
         return tex;
     }
 
-    /// <summary>Face print for a coin: concentric rings plus a small motif.</summary>
-    public static Texture2D CreateCoinFaceTexture(Color face, Color ring, bool queen = false, int size = 128)
+    /// <summary>
+    /// Lacquered face print for a coin: domed shading, turned grooves, embossed
+    /// concentric rings and a centre motif. The relief shading is what makes the
+    /// flat top read as a solid, polished 3D piece on a phone screen.
+    /// </summary>
+    public static Texture2D CreateCoinFaceTexture(Color face, Color ring, bool queen = false, int size = 256)
     {
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.name = queen ? "QueenCoinFace" : "CoinFace";
         float half = size * 0.5f;
+        Color gold = new Color(1f, 0.84f, 0.38f);
 
         for (int y = 0; y < size; y++)
         {
@@ -108,34 +114,46 @@ public static class ProceduralTextures
                 float py = (y + 0.5f - half) / half;
                 float r = Mathf.Sqrt(px * px + py * py);
 
-                Color c = face;
+                // Domed body: brighter towards the middle, darker at the edge.
+                float relief = Mathf.Clamp01(1f - r * r);
+                Color c = Color.Lerp(face, Color.Lerp(face, Color.white, 0.18f), relief * 0.6f);
 
-                // printed concentric bands
-                if (r > 0.34f && r < 0.40f) c = Color.Lerp(c, ring, 0.55f);
-                if (r > 0.62f && r < 0.70f) c = Color.Lerp(c, ring, 0.85f);
-                if (r > 0.86f) c = Color.Lerp(c, ring, 0.35f);
+                // Fine turned grooves left by the lathe.
+                float groove = 0.5f + 0.5f * Mathf.Sin(r * 230f);
+                c *= 0.972f + groove * 0.056f;
+
+                // Raised rings: dark inner lip, bright outer lip.
+                c = EmbossedBand(c, r, 0.845f, 0.955f, ring);
+                c = EmbossedBand(c, r, 0.610f, 0.672f, ring);
+                c = EmbossedBand(c, r, 0.300f, 0.352f, ring);
 
                 if (queen)
                 {
-                    // simple crown silhouette
-                    float crownTop = 0.30f;
-                    float crownBottom = 0.34f;
-                    bool inCrown = py > -0.18f && py < crownTop &&
-                                   Mathf.Abs(px) < crownBottom * (1f - Mathf.Clamp01((py + 0.18f) / 0.5f) * 0.35f);
-                    if (inCrown && (py < 0.10f || Mathf.Abs(Mathf.Sin(px * 18f)) > 0.55f))
-                        c = Color.Lerp(c, new Color(1f, 0.86f, 0.42f), 0.9f);
+                    c = QueenMotif(c, px, py, r, gold, ring, face);
                 }
                 else
                 {
-                    // small centre star
-                    float star = Mathf.Pow(Mathf.Abs(px), 0.6f) + Mathf.Pow(Mathf.Abs(py), 0.6f);
-                    if (star < 0.28f) c = Color.Lerp(c, ring, 0.55f);
+                    // Twelve petal rosette stamped in the centre.
+                    float angle = Mathf.Atan2(py, px);
+                    float petal = 0.122f + Mathf.Cos(angle * 12f) * 0.048f;
+                    if (r < 0.205f)
+                    {
+                        if (r > 0.185f)
+                            c = Color.Lerp(c, ring, 0.8f);
+                        else if (r < petal)
+                            c = Color.Lerp(c, ring, 0.62f);
+                        else
+                            c = Color.Lerp(c, face, 0.45f);
+                    }
                 }
 
-                // soft sheen
+                // Glossy sheen from the key light (upper left of the face).
                 float sheen = Mathf.Clamp01(1f - Vector2.Distance(
-                    new Vector2(px, py), new Vector2(-0.35f, 0.35f)) / 0.9f);
-                c = Color.Lerp(c, Color.white, sheen * 0.18f);
+                    new Vector2(px, py), new Vector2(-0.33f, 0.35f)) / 1.05f);
+                c = Color.Lerp(c, Color.white, sheen * sheen * 0.20f);
+
+                // Recessed edge where the print meets the bevel.
+                c = Color.Lerp(c, face * 0.62f, SmoothRange(0.94f, 1f, r));
 
                 c.a = 1f;
                 tex.SetPixel(x, y, c);
@@ -146,6 +164,106 @@ public static class ProceduralTextures
         tex.wrapMode = TextureWrapMode.Clamp;
         tex.filterMode = FilterMode.Bilinear;
         return tex;
+    }
+
+    /// <summary>Ivory striker face: polished lacquer with red and gold inlays.</summary>
+    public static Texture2D CreateStrikerFaceTexture(int size = 256)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.name = "StrikerFace";
+
+        Color ivory = new Color(0.98f, 0.95f, 0.88f);
+        Color red = new Color(0.72f, 0.12f, 0.10f);
+        Color gold = new Color(0.93f, 0.74f, 0.32f);
+
+        float half = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float px = (x + 0.5f - half) / half;
+                float py = (y + 0.5f - half) / half;
+                float r = Mathf.Sqrt(px * px + py * py);
+
+                float relief = Mathf.Clamp01(1f - r * r);
+                Color c = Color.Lerp(ivory, Color.white, relief * 0.35f);
+
+                float groove = 0.5f + 0.5f * Mathf.Sin(r * 210f);
+                c *= 0.978f + groove * 0.045f;
+
+                c = EmbossedBand(c, r, 0.905f, 0.965f, gold);
+                c = EmbossedBand(c, r, 0.640f, 0.780f, red);
+                c = EmbossedBand(c, r, 0.435f, 0.470f, gold);
+
+                if (r < 0.155f)
+                {
+                    float t = Mathf.Clamp01(r / 0.155f);
+                    c = Color.Lerp(Color.Lerp(gold, Color.white, 0.25f), gold * 0.92f, t);
+                    c = Color.Lerp(c, red, SmoothRange(0.72f, 1f, t) * 0.75f);
+                }
+
+                float sheen = Mathf.Clamp01(1f - Vector2.Distance(
+                    new Vector2(px, py), new Vector2(-0.30f, 0.36f)) / 1.0f);
+                c = Color.Lerp(c, Color.white, sheen * sheen * 0.30f);
+
+                c = Color.Lerp(c, ivory * 0.70f, SmoothRange(0.94f, 1f, r));
+
+                c.a = 1f;
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        tex.Apply(false, true);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        return tex;
+    }
+
+    /// <summary>GLSL-style smoothstep between two edges, returning 0..1.</summary>
+    private static float SmoothRange(float edge0, float edge1, float x)
+    {
+        if (Mathf.Approximately(edge0, edge1)) return x >= edge1 ? 1f : 0f;
+        float t = Mathf.Clamp01((x - edge0) / (edge1 - edge0));
+        return t * t * (3f - 2f * t);
+    }
+
+    private static Color EmbossedBand(Color c, float r, float inner, float outer, Color bandColor)
+    {
+        if (r < inner || r > outer) return c;
+
+        float t = (r - inner) / Mathf.Max(0.0001f, outer - inner);
+        Color band = bandColor;
+
+        // Dark inside lip.
+        band = Color.Lerp(bandColor * 0.68f, band, Mathf.Clamp01(t * 4.5f));
+        // Bright outside lip.
+        band = Color.Lerp(band, Color.Lerp(bandColor, Color.white, 0.38f),
+                          Mathf.Clamp01((t - 0.72f) * 3.6f));
+
+        return Color.Lerp(c, band, 0.94f);
+    }
+
+    private static Color QueenMotif(Color c, float px, float py, float r, Color gold, Color ring, Color face)
+    {
+        // Solid gold disc behind the crown so the queen reads at a glance.
+        if (r < 0.215f)
+            c = Color.Lerp(c, gold * 0.92f, SmoothRange(0.215f, 0.195f, r) * 0.85f);
+
+        float crownBase = -0.095f;
+        float crownTop = 0.085f;
+        float width = 0.145f;
+
+        bool crownBar = py >= crownBase && py <= crownBase + 0.045f && Mathf.Abs(px) <= width;
+        bool body = py > crownBase + 0.045f && py <= crownTop && Mathf.Abs(px) <= width;
+        bool spikes = py > crownTop && py <= crownTop + 0.085f
+                      && Mathf.Abs(px) <= width
+                      && Mathf.Abs(Mathf.Sin(px * 24f)) > 0.35f;
+
+        if (crownBar || body || spikes)
+            c = Color.Lerp(c, new Color(0.48f, 0.12f, 0.09f), 0.92f);
+
+        return c;
     }
 
     public static Texture2D CreateWoodTexture(int width = 256, int height = 256)
