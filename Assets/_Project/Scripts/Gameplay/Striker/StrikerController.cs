@@ -14,16 +14,18 @@ public class StrikerController : MonoBehaviour
     public float minForce = 8f;
     public float maxForce = 55f;
     public float baselineWidth = 1.842f;
-    public float strikerRadius = 0.0872f;
+    // 1.5x the ICF 4.13 cm striker. Commercial mobile carrom titles
+    // deliberately oversize pieces so they stay readable on a phone screen.
+    public float strikerRadius = 0.131f;
 
     [Header("Table Layout")]
     public float baselineZ = 0.99f;
     // Two base-circle radii: the striker may sit between the base circles but
     // never cover them (ICF rule).
     public float baselineEndInset = 0.1246f;
-    public float strikerRestY = 0.072f;
-    public float strikerThickness = 0.056f;
-    public float strikerBevel = 0.012f;
+    public float strikerRestY = 0.080f;
+    public float strikerThickness = 0.070f;
+    public float strikerBevel = 0.014f;
 
     [Header("Physics Settings")]
     public PhysicsMaterial strikerPhysicsMaterial;
@@ -61,11 +63,9 @@ public class StrikerController : MonoBehaviour
     private void BuildStrikerVisual()
     {
         // Warm turned brass for the rim, satin ivory for the printed face.
-        Material rimMat = CreateSimpleMaterial(new Color(0.96f, 0.78f, 0.33f), 0.90f, 0.96f);
-        Material faceMat = CreateSimpleMaterial(Color.white, 0.04f, 0.88f);
+        Material rimMat = CreateSimpleMaterial(new Color(0.84f, 0.64f, 0.30f), 0.80f, 0.94f);
+        Material faceMat = CreateSimpleMaterial(Color.white, 0.04f, 0.62f);
         faceMat.mainTexture = ProceduralTextures.CreateStrikerFaceTexture();
-        Material inlayMat = CreateSimpleMaterial(new Color(0.99f, 0.84f, 0.42f), 0.96f, 0.98f);
-        Material bossMat = CreateSimpleMaterial(new Color(0.98f, 0.79f, 0.34f), 0.30f, 0.80f);
 
         GameObject body = new GameObject("StrikerBody");
         body.transform.SetParent(transform, false);
@@ -78,33 +78,6 @@ public class StrikerController : MonoBehaviour
         renderer.sharedMaterials = new Material[] { rimMat, faceMat };
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
         renderer.receiveShadows = true;
-
-        // Raised brass inlay ring sitting on the painted face band.
-        float dome = strikerBevel * 0.45f;
-        GameObject ring = new GameObject("StrikerInlayRing");
-        ring.transform.SetParent(transform, false);
-        ring.transform.localPosition = new Vector3(
-            0f, strikerThickness * 0.5f + dome * 0.62f, 0f);
-        MeshFilter ringFilter = ring.AddComponent<MeshFilter>();
-        ringFilter.sharedMesh = PieceMeshFactory.GetTorus(
-            "StrikerInlay", strikerRadius * 0.715f, 0.0034f, 72, 10);
-        MeshRenderer ringRenderer = ring.AddComponent<MeshRenderer>();
-        ringRenderer.sharedMaterial = inlayMat;
-        ringRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-        ringRenderer.receiveShadows = true;
-
-        // Turned centre boss, like the hub of a real wooden striker.
-        GameObject boss = new GameObject("StrikerBoss");
-        boss.transform.SetParent(transform, false);
-        boss.transform.localPosition = new Vector3(
-            0f, strikerThickness * 0.5f + dome + 0.0022f, 0f);
-        MeshFilter bossFilter = boss.AddComponent<MeshFilter>();
-        bossFilter.sharedMesh = PieceMeshFactory.GetDisc(
-            "StrikerBoss", strikerRadius * 0.255f, 0.008f, 0.0018f, 48);
-        MeshRenderer bossRenderer = boss.AddComponent<MeshRenderer>();
-        bossRenderer.sharedMaterials = new Material[] { bossMat, bossMat };
-        bossRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-        bossRenderer.receiveShadows = true;
 
         // Grounds the striker on the board and gives it visible thickness.
         PieceMeshFactory.CreateContactShadow(
@@ -234,8 +207,9 @@ public class StrikerController : MonoBehaviour
             Vector3 delta = pointer.Value - transform.position;
             delta.y = 0f;
 
-            // Generous grab radius: the striker is small on a phone screen.
-            if (delta.magnitude <= strikerRadius * 4.0f)
+            // Generous grab radius, but still leaves the rest of the baseline
+            // free for tap-to-slide placement.
+            if (delta.magnitude <= strikerRadius * 3.0f)
             {
                 StartAiming();
             }
@@ -324,7 +298,10 @@ public class StrikerController : MonoBehaviour
         float distance = toPointer.magnitude;
         if (distance < 0.001f) return;
 
-        shotDirection = toPointer.normalized;
+        // Slingshot control: pull back from the striker and the shot fires the
+        // opposite way, exactly like a real carrom flick. The guideline is
+        // therefore drawn ahead of the striker, not under the finger.
+        shotDirection = -toPointer.normalized;
         shotPower = Mathf.Clamp01(distance / maxDragDistance) * (maxForce - minForce) + minForce;
         CurrentPowerNormalized = Mathf.Clamp01((shotPower - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
     }
@@ -369,12 +346,9 @@ public class StrikerController : MonoBehaviour
         float length = 0.45f + power * 1.55f;
         float startDistance = strikerRadius * 1.35f;
 
-        Color low = new Color(0.42f, 0.92f, 0.55f);
-        Color mid = new Color(1f, 0.85f, 0.36f);
-        Color high = new Color(1f, 0.42f, 0.30f);
-        Color color = power < 0.5f
-            ? Color.Lerp(low, mid, power * 2f)
-            : Color.Lerp(mid, high, (power - 0.5f) * 2f);
+        // Clean ivory guide dots like the reference game. Force is shown by the
+        // power bar and by how far the dots reach, not by rainbow colours.
+        Color color = new Color(0.995f, 0.975f, 0.915f);
 
         Vector3 origin = transform.position + Vector3.up * 0.010f;
 
@@ -385,17 +359,16 @@ public class StrikerController : MonoBehaviour
             GameObject dot = aimDots[i];
             dot.transform.position = origin + shotDirection * distance;
 
-            // Dots taper but stay chunky enough to read on a phone screen.
-            float size = 0.042f * (1f - 0.42f * t);
+            // Fine, tapering dotted guideline.
+            float size = 0.034f * (1f - 0.38f * t);
             dot.transform.localScale = new Vector3(size, 0.0012f, size);
 
             Material mat = aimDotMats[i];
-            Color dotColor = Color.Lerp(Color.white, color, 0.55f);
-            mat.color = dotColor;
+            mat.color = color;
             if (mat.HasProperty("_EmissionColor"))
             {
                 mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", color * 1.5f);
+                mat.SetColor("_EmissionColor", color * 0.55f);
             }
         }
     }

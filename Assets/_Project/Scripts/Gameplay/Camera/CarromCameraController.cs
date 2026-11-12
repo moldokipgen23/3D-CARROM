@@ -14,7 +14,10 @@ public class CarromCameraController : MonoBehaviour
     public float cameraDistance = 8f;
     // Kept for the existing camera test / inspector compatibility.
     public float cameraHeight = 2f;
-    public float cameraAngle = 82f;
+    // 90 = straight down. A top-down camera keeps the square board perfectly
+    // square on screen; the pieces still read as 3D because of the lighting,
+    // soft contact shadows and the bevelled meshes.
+    public float cameraAngle = 90f;
     public float smoothTime = 0.3f;
 
     [Header("Framing")]
@@ -22,13 +25,18 @@ public class CarromCameraController : MonoBehaviour
     public float fieldOfView = 52f;
     // When enabled the camera distance is calculated from the board size.
     public bool autoFit = true;
-    // 0.975 leaves a small breathing gap between the frame and the screen edge.
-    public float fitMargin = 0.975f;
-    public float lookAtHeight = 0.15f;
+    // Fraction of the viewport the full board (frame included) should span.
+    public float fitMargin = 0.92f;
+    public float lookAtHeight = 0.35f;
+    // Lifts the board above the viewport centre so the HUD and the placement
+    // slider get breathing room without covering the frame. Fraction of span.
+    public float framingBias = 0.12f;
+
+    private const float TopDownAngle = 89.9f;
 
     [Header("Zoom")]
     public float zoom = 1f;
-    public float minZoom = 0.92f;
+    public float minZoom = 0.90f;
     public float maxZoom = 1.60f;
     public float zoomStep = 0.12f;
     public float zoomLerpSpeed = 10f;
@@ -82,7 +90,7 @@ public class CarromCameraController : MonoBehaviour
         cam.nearClipPlane = 0.1f;
         cam.farClipPlane = 120f;
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.13f, 0.085f, 0.055f, 1f);
+        cam.backgroundColor = new Color(0.210f, 0.045f, 0.040f, 1f);
         cam.allowHDR = true;
         cam.allowMSAA = true;
 
@@ -102,14 +110,61 @@ public class CarromCameraController : MonoBehaviour
     {
         float baseDistance = autoFit ? fittedDistance : cameraDistance;
         float distance = Mathf.Max(2f, baseDistance) / Mathf.Max(0.25f, zoom);
-        float angleRad = cameraAngle * Mathf.Deg2Rad;
 
-        Vector3 direction = new Vector3(0f, Mathf.Sin(angleRad), -Mathf.Cos(angleRad));
-        Vector3 target = boardCenter + Vector3.up * lookAtHeight;
+        Vector3 target;
+        Vector3 offsetDir;
+        GetFraming(out target, out offsetDir);
 
-        cam.transform.position = boardCenter + direction * distance;
-        cam.transform.LookAt(target);
+        cam.transform.position = target + offsetDir * distance;
+
+        if (IsTopDown)
+        {
+            // LookAt with the world-up vector is degenerate when the camera
+            // points straight down, so set the rotation explicitly. Screen up
+            // becomes world +z, putting the far baseline at the top.
+            cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        }
+        else
+        {
+            cam.transform.LookAt(target);
+        }
+
         cam.fieldOfView = fieldOfView;
+    }
+
+    private bool IsTopDown
+    {
+        get { return cameraAngle >= TopDownAngle; }
+    }
+
+    /// <summary>
+    /// Position direction and the point the camera looks at. The target is
+    /// nudged down-screen so the board sits a little above the middle of the
+    /// phone, clear of the HUD and the placement slider.
+    /// </summary>
+    private void GetFraming(out Vector3 target, out Vector3 offsetDir)
+    {
+        float span = GetBoardSpan();
+        float angleRad = cameraAngle * Mathf.Deg2Rad;
+        offsetDir = new Vector3(0f, Mathf.Sin(angleRad), -Mathf.Cos(angleRad)).normalized;
+
+        Vector3 forward = -offsetDir;
+        Vector3 right = Vector3.Cross(Vector3.up, forward);
+        if (right.sqrMagnitude < 0.000001f)
+            right = Vector3.right;
+        else
+            right.Normalize();
+
+        // Screen-up direction flattened onto the board plane, so the bias is a
+        // pure on-screen vertical shift for any camera pitch.
+        Vector3 screenUp = Vector3.Cross(forward, right);
+        screenUp.y = 0f;
+        if (screenUp.sqrMagnitude < 0.000001f)
+            screenUp = Vector3.forward;
+        else
+            screenUp.Normalize();
+
+        target = boardCenter + Vector3.up * lookAtHeight - screenUp * (span * framingBias);
     }
 
     /// <summary>
@@ -130,24 +185,32 @@ public class CarromCameraController : MonoBehaviour
         float tanH = Mathf.Max(0.0001f, tanV * aspect);
         float target = Mathf.Clamp(fitMargin, 0.5f, 0.995f);
 
-        float angleRad = cameraAngle * Mathf.Deg2Rad;
-        Vector3 direction = new Vector3(0f, Mathf.Sin(angleRad), -Mathf.Cos(angleRad));
-        Vector3 lookTarget = boardCenter + Vector3.up * lookAtHeight;
+        Vector3 lookTarget;
+        Vector3 offsetDir;
+        GetFraming(out lookTarget, out offsetDir);
+
+        Vector3 forward = -offsetDir;
+        Vector3 right = Vector3.Cross(Vector3.up, forward);
+        if (right.sqrMagnitude < 0.000001f)
+            right = Vector3.right;
+        else
+            right.Normalize();
+        Vector3 up = Vector3.Cross(forward, right).normalized;
 
         float distance = Mathf.Max(2f, cameraDistance);
-        for (int iteration = 0; iteration < 14; iteration++)
+        for (int iteration = 0; iteration < 16; iteration++)
         {
-            Vector3 camPos = boardCenter + direction * distance;
-            Vector3 forward = (lookTarget - camPos).normalized;
-            Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-            Vector3 up = Vector3.Cross(forward, right).normalized;
+            Vector3 camPos = lookTarget + offsetDir * distance;
 
             float worst = 0f;
             for (int sx = -1; sx <= 1; sx += 2)
             {
                 for (int sz = -1; sz <= 1; sz += 2)
                 {
-                    Vector3 corner = new Vector3(sx * half, 0f, sz * half) - camPos;
+                    Vector3 corner = new Vector3(
+                        boardCenter.x + sx * half,
+                        boardCenter.y,
+                        boardCenter.z + sz * half) - camPos;
                     float depth = Vector3.Dot(corner, forward);
                     if (depth < 0.05f) depth = 0.05f;
 
@@ -168,10 +231,15 @@ public class CarromCameraController : MonoBehaviour
     {
         BoardSetup board = FindObjectOfType<BoardSetup>(true);
         if (board != null && board.boardSize > 0.01f)
-            return board.boardSize + board.borderWidth * 2f;
+        {
+            // The whole board, frame included, must stay on screen: the outer
+            // rail is part of the silhouette and cropping it makes the board
+            // look tilted. The small extra allowance covers the proud frame cap.
+            return board.boardSize + board.borderWidth * 2f + 0.04f;
+        }
 
         // Fallback matches the current scene board (74 cm surface + frame).
-        return 3.45f;
+        return 3.18f;
     }
 
     private void Update()

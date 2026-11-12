@@ -370,9 +370,9 @@ MonoBehaviour:
   minForce: 8
   maxForce: 55
   baselineWidth: 1.842
-  strikerRadius: 0.0872
+  strikerRadius: 0.131
   baselineZ: 0.99
-  strikerRestY: 0.072
+  strikerRestY: 0.080
   strikerPhysicsMaterial: {fileID: 0}
   Rigidbody: {fileID: 0}
   StrikerCollider: {fileID: 0}
@@ -531,9 +531,9 @@ MonoBehaviour:
   boardThickness: 0.08
   whiteCoinCount: 9
   blackCoinCount: 9
-  coinRadius: 0.0672
-  coinThickness: 0.040
-  coinSpacing: 0.0018
+  coinRadius: 0.1008
+  coinThickness: 0.055
+  coinSpacing: 0.0027
   spawnPositions:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 0, z: 0}
@@ -567,13 +567,14 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   cameraDistance: 8
-  cameraAngle: 82
+  cameraAngle: 90
   smoothTime: 0.3
   boardCenter: {x: 0, y: 0, z: 0}
   fieldOfView: 52
   autoFit: 1
-  fitMargin: 0.975
-  lookAtHeight: 0.15
+  fitMargin: 0.92
+  lookAtHeight: 0.35
+  framingBias: 0.12
   zoom: 1
   minZoom: 0.92
   maxZoom: 1.6

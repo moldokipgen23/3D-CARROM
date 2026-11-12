@@ -4,13 +4,14 @@ public class BoardSetup : MonoBehaviour
 {
     [Header("Board Dimensions (ICF: 74 cm playing surface)")]
     public float boardSize = 2.9f;
-    public float borderWidth = 0.275f;
+    public float borderWidth = 0.12f;
     public float boardThickness = 0.08f;
     public float frameHeight = 0.086f;
 
     [Header("Pockets (ICF: 4.45 cm)")]
-    public float pocketRadius = 0.0872f;
-    public float pocketRimWidth = 0.012f;
+    // Scaled with the 1.5x pieces so the striker (r = 0.131) still drops in.
+    public float pocketRadius = 0.140f;
+    public float pocketRimWidth = 0.016f;
 
     [Header("Base Lines (ICF: 47 cm lines, 3.18 cm apart)")]
     public float baseLineDistance = 0.99f;
@@ -64,9 +65,10 @@ public class BoardSetup : MonoBehaviour
         CreatePlayingSurface(boardRoot);
         CreateWoodFrame(boardRoot);
         CreatePockets(boardRoot);
-        CreateCenterDesign(boardRoot);
-        CreateBaseLines(boardRoot);
-        CreateCornerArrows(boardRoot);
+        // Base lines, circles, arrows and the centre rosette are baked into the
+        // high-resolution playing-surface texture. Separate floating quads used
+        // to z-fight at grazing angles, which read as shimmering "animated"
+        // lines, and they were limited to the texture-free 512 px surface.
 
         // The playing-surface cube provides the collision floor.  A second
         // full-size collider here would overlap the coins and cause jitter.
@@ -88,19 +90,20 @@ public class BoardSetup : MonoBehaviour
         table.transform.localPosition = new Vector3(0, -0.075f, 0);
         table.transform.localScale = new Vector3(boardSize + 2.6f, 0.15f, boardSize + 2.6f);
         // Darken the table a touch so the board frame reads as a separate object.
-        Material tableMat = CreateRosewoodMaterial();
-        tableMat.color = new Color(0.58f, 0.51f, 0.48f);
+        // Dark wine table under a bright orange-rimmed board: the playcourt is
+        // the only lit object, exactly like the reference layout.
+        Material tableMat = CreateMaterial(new Color(0.245f, 0.055f, 0.045f), 0.0f, 0.30f);
         table.GetComponent<MeshRenderer>().sharedMaterial = tableMat;
 
-        // Wide floor so the portrait frame is filled with warm wood instead of
-        // black void above and below the board.
+        // Wide floor so the portrait frame is filled with deep maroon instead
+        // of black void above and below the board.
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor";
         floor.transform.parent = parent.transform;
         floor.transform.localPosition = new Vector3(0, -1.15f, 0);
         floor.transform.localScale = new Vector3(24f, 0.12f, 24f);
         floor.GetComponent<MeshRenderer>().sharedMaterial =
-            CreateMaterial(new Color(0.11f, 0.075f, 0.05f), 0.05f, 0.35f);
+            CreateMaterial(new Color(0.145f, 0.032f, 0.028f), 0.0f, 0.30f);
     }
 
     /// <summary>Solid slab the playing surface sits on, so the board looks thick from the side.</summary>
@@ -155,8 +158,9 @@ public class BoardSetup : MonoBehaviour
             new Vector3(borderWidth, bodyHeight, outerSize)
         };
 
-        Material frameMat = CreateRosewoodMaterial();
-        frameMat.color = new Color(0.86f, 0.80f, 0.76f);
+        // Painted orange rim, like the tournament boards in commercial carrom
+        // games. The lighter cap and the dark inner lip give it a bevel.
+        Material frameMat = CreateMaterial(new Color(0.905f, 0.505f, 0.150f), 0.0f, 0.55f);
 
         for (int i = 0; i < 4; i++)
         {
@@ -183,8 +187,7 @@ public class BoardSetup : MonoBehaviour
         float capSize = boardSize + capWidth * 2f;
         float axis = half + borderWidth / 2f + 0.004f;
 
-        Material capMat = CreateRosewoodMaterial();
-        capMat.color = new Color(1.02f, 0.96f, 0.90f);
+        Material capMat = CreateMaterial(new Color(0.985f, 0.610f, 0.215f), 0.0f, 0.60f);
 
         Vector3[] positions = {
             new Vector3(0, capCenterY, axis),
@@ -211,7 +214,7 @@ public class BoardSetup : MonoBehaviour
         }
     }
 
-    /// <summary>Brass pinstripe + mitre joints on the frame top, like an inlaid carrom board.</summary>
+    /// <summary>Painted groove + mitre joints on the frame top, like a moulded rim.</summary>
     private void CreateFrameInlay(GameObject parent)
     {
         float half = boardSize / 2f;
@@ -219,7 +222,7 @@ public class BoardSetup : MonoBehaviour
         float inset = 0.075f;
         float dist = half + inset;
         float length = boardSize + borderWidth * 2f - inset * 2f;
-        Material brass = CreateBrassMaterial();
+        Material groove = CreateMaterial(new Color(0.735f, 0.375f, 0.100f), 0.0f, 0.45f);
 
         for (int i = 0; i < 4; i++)
         {
@@ -234,29 +237,8 @@ public class BoardSetup : MonoBehaviour
             strip.transform.localScale = horizontal
                 ? new Vector3(length, 0.002f, 0.009f)
                 : new Vector3(0.009f, 0.002f, length);
-            strip.GetComponent<MeshRenderer>().sharedMaterial = brass;
+            strip.GetComponent<MeshRenderer>().sharedMaterial = groove;
             RemoveCollider(strip);
-        }
-
-        // Mitre joints at the four corners.
-        Material joint = CreateMaterial(new Color(0.12f, 0.06f, 0.035f), 0.05f, 0.45f);
-        float jointLength = borderWidth * 1.35f;
-        for (int i = 0; i < 4; i++)
-        {
-            float sx = (i == 0 || i == 3) ? -1f : 1f;
-            float sz = (i < 2) ? 1f : -1f;
-
-            GameObject mitre = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            mitre.name = "Mitre_" + i;
-            mitre.transform.parent = parent.transform;
-            mitre.transform.localPosition = new Vector3(
-                sx * (half + borderWidth * 0.5f),
-                capTop + 0.0026f,
-                sz * (half + borderWidth * 0.5f));
-            mitre.transform.localRotation = Quaternion.Euler(0f, sx * sz * 45f, 0f);
-            mitre.transform.localScale = new Vector3(0.007f, 0.001f, jointLength);
-            mitre.GetComponent<MeshRenderer>().sharedMaterial = joint;
-            RemoveCollider(mitre);
         }
     }
 
@@ -299,7 +281,9 @@ public class BoardSetup : MonoBehaviour
         Vector3[] pocketPositions = CalculatePocketPositions();
 
         Material holeMat = CreateMaterial(new Color(0.012f, 0.010f, 0.008f), 0.0f, 0.25f);
-        Material rimMat = CreateBrassMaterial();
+        // Dark turned rim: the reference pockets are plain black holes, so no
+        // brass ring stealing attention from the pieces.
+        Material rimMat = CreateMaterial(new Color(0.185f, 0.098f, 0.050f), 0.15f, 0.45f);
         Material throatMat = CreateMaterial(new Color(0.10f, 0.065f, 0.04f), 0.15f, 0.55f);
 
         for (int i = 0; i < 4; i++)
@@ -674,17 +658,17 @@ public class BoardSetup : MonoBehaviour
         lightingObj.transform.position = new Vector3(0, 2f, 0);
 
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.23f, 0.19f, 0.15f);
+        RenderSettings.ambientLight = new Color(0.255f, 0.215f, 0.175f);
 
         Light mainLight = lightingObj.AddComponent<Light>();
         mainLight.type = LightType.Directional;
         mainLight.color = new Color(1f, 0.96f, 0.90f);
-        mainLight.intensity = 1.45f;
+        mainLight.intensity = 1.02f;
         mainLight.shadows = LightShadows.Soft;
-        mainLight.shadowStrength = 0.62f;
+        mainLight.shadowStrength = 0.50f;
         mainLight.shadowBias = 0.012f;
         mainLight.shadowNormalBias = 0.18f;
-        lightingObj.transform.rotation = Quaternion.Euler(46f, -32f, 0f);
+        lightingObj.transform.rotation = Quaternion.Euler(52f, -30f, 0f);
 
         // Concentrate the shadow map on the board so small pieces get clean
         // contact shadows instead of a blurry smear.
@@ -698,7 +682,7 @@ public class BoardSetup : MonoBehaviour
         Light lamp = lampObj.AddComponent<Light>();
         lamp.type = LightType.Point;
         lamp.color = new Color(1f, 0.90f, 0.76f);
-        lamp.intensity = 0.85f;
+        lamp.intensity = 0.30f;
         lamp.range = 5.0f;
         lamp.shadows = LightShadows.None;
 
@@ -732,7 +716,353 @@ public class BoardSetup : MonoBehaviour
 
     private Material CreateSurfaceMaterial()
     {
-        return CreateTexturedMaterial(ProceduralTextures.GetPlywoodTexture(), 0.0f, 0.50f);
+        Texture2D texture = CreateBoardSurfaceTexture();
+        Material mat = CreateTexturedMaterial(texture, 0.0f, 0.42f);
+        return mat;
+    }
+
+    /// <summary>
+    /// Builds one high-resolution texture containing the wood grain plus every
+    /// printed marking. Baking the markings means they are anti-aliased by the
+    /// texture sampler (crisp at any zoom) rather than razor-thin quads that
+    /// flicker against the surface.
+    /// </summary>
+    private Texture2D CreateBoardSurfaceTexture()
+    {
+        // 1536 px across the playcourt keeps the printed lines sharper than the
+        // screen can resolve at this zoom, so they never look soft or jagged.
+        BoardSurfacePainter painter = new BoardSurfacePainter(1536, boardSize);
+        painter.BuildWood();
+        painter.PaintMarkings(this);
+        return painter.ToTexture("CarromSurface");
+    }
+
+    /// <summary>Draws the playing surface directly into a colour buffer.</summary>
+    private sealed class BoardSurfacePainter
+    {
+        private readonly int size;
+        private readonly float half;
+        private readonly float texel;
+        private readonly Color32[] pixels;
+
+        private static readonly Color LineBlack = BoardSetup.LineBlack;
+        private static readonly Color LineRed = BoardSetup.LineRed;
+        private static readonly Color LineRedDark = BoardSetup.LineRedDark;
+        private static readonly Color LineBrown = BoardSetup.LineBrown;
+        private static readonly Color LineBrownDark = BoardSetup.LineBrownDark;
+
+        public BoardSurfacePainter(int size, float span)
+        {
+            this.size = size;
+            half = span * 0.5f;
+            texel = span / size;
+            pixels = new Color32[size * size];
+        }
+
+        // -------------------------------------------------------------- wood
+
+        public void BuildWood()
+        {
+            // Warm tan birch: light enough for brown ink to read, but not so
+            // pale that the key light blows the face out to white.
+            Color light = new Color(0.914f, 0.836f, 0.694f);
+            Color mid = new Color(0.852f, 0.756f, 0.598f);
+            Color dark = new Color(0.714f, 0.584f, 0.414f);
+
+            for (int y = 0; y < size; y++)
+            {
+                float v = y / (float)(size - 1);
+                for (int x = 0; x < size; x++)
+                {
+                    float u = x / (float)(size - 1);
+
+                    // Warp the grain so the stripes undulate instead of
+                    // repeating like a printed pattern.
+                    float warp = Mathf.PerlinNoise(u * 2.2f + 9.1f, v * 6.4f + 2.7f) - 0.5f;
+
+                    // Grain runs up the screen (along Z), like the reference.
+                    float g1 = Mathf.PerlinNoise(u * 26f + warp * 2.2f,
+                        v * 1.4f + warp * 0.30f);
+                    float g2 = Mathf.PerlinNoise(u * 70f + 7.2f + warp * 0.5f,
+                        v * 5.5f + 13.7f);
+                    float g3 = Mathf.PerlinNoise(u * 220f + 18.6f, v * 18f + 31.4f);
+
+                    float t = Mathf.Clamp01(g1 * 0.50f + g2 * 0.32f + g3 * 0.18f);
+                    Color c = Color.Lerp(light, mid, Mathf.Clamp01(t * 0.95f));
+                    c = Color.Lerp(c, dark, Mathf.Clamp01((t - 0.60f) * 1.4f) * 0.55f);
+
+                    // Tight, long fibres: the fine figure of birch ply, not
+                    // broad painted bands.
+                    float fibre = Mathf.PerlinNoise(u * 260f + 5.7f, v * 3.1f + 21.3f);
+                    c = Color.Lerp(c, dark, Mathf.Clamp01((fibre - 0.58f) * 1.6f) * 0.30f);
+
+                    float dx = u - 0.5f;
+                    float dy = v - 0.5f;
+                    float vignette = Mathf.Clamp01(1f - (dx * dx + dy * dy) * 1.15f);
+                    c *= 0.95f + vignette * 0.07f;
+
+                    pixels[y * size + x] = c;
+                }
+            }
+        }
+
+        // ----------------------------------------------------------- markings
+
+        public void PaintMarkings(BoardSetup b)
+        {
+            // Thin printed ink on pale birch, like a tournament board. The old
+            // bold black ICF lines read as heavy stripes; these stay crisp but
+            // light, and the base discs are the only saturated element.
+            float lineThickness = 0.0075f;
+            Color ink = new Color(0.400f, 0.232f, 0.132f);
+            Color baseEdge = new Color(0.545f, 0.278f, 0.086f);
+            Color baseFill = new Color(0.940f, 0.560f, 0.170f);
+            Color baseHeart = new Color(0.330f, 0.158f, 0.062f);
+            Color rosette = new Color(0.620f, 0.418f, 0.235f);
+
+            // Base lines: one rounded double frame around the court.
+            float outer = b.baseLineDistance + b.baseLineGap * 0.5f;
+            float inner = b.baseLineDistance - b.baseLineGap * 0.5f;
+            RoundedRectOutline(outer, 0.185f, lineThickness, ink);
+            RoundedRectOutline(inner, 0.160f, lineThickness, ink);
+
+            // Orange base discs at both ends of every base line, sitting in the
+            // gap between the two printed lines exactly like the reference.
+            float circleX = b.baseLineLength * 0.5f - b.baseCircleRadius;
+            for (int side = 0; side < 4; side++)
+            {
+                bool horizontal = side < 2;
+                float center = (horizontal ? (side == 0 ? 1f : -1f)
+                                           : (side == 2 ? -1f : 1f)) * b.baseLineDistance;
+
+                for (int end = -1; end <= 1; end += 2)
+                {
+                    float along = end * circleX;
+                    float cx = horizontal ? along : center;
+                    float cz = horizontal ? center : along;
+                    Disc(cx, cz, b.baseCircleRadius + 0.0065f, baseEdge);
+                    Disc(cx, cz, b.baseCircleRadius, baseFill);
+                    Disc(cx, cz, 0.0125f, baseHeart);
+                }
+            }
+
+            // Thin diagonal guide lines beside each pocket (no arrowhead).
+            for (int i = 0; i < 4; i++)
+            {
+                float sx = (i == 0 || i == 3) ? -1f : 1f;
+                float sz = (i < 2) ? 1f : -1f;
+
+                Vector2 gap = new Vector2(
+                    sx * (circleX + b.baseLineDistance) * 0.5f,
+                    sz * (circleX + b.baseLineDistance) * 0.5f);
+
+                Vector2 pocket = new Vector2(
+                    sx * (b.boardSize * 0.5f - b.pocketRadius - PocketInset),
+                    sz * (b.boardSize * 0.5f - b.pocketRadius - PocketInset));
+
+                Vector2 dir = (pocket - gap).normalized;
+                Vector2 end = pocket - dir * (b.pocketRadius + 0.205f);
+                Vector2 start = end - dir * Mathf.Min(b.arrowLength, Vector2.Distance(gap, end));
+                Line(start.x, start.y, end.x, end.y, lineThickness, ink);
+            }
+
+            // Centre: a wide printed circle with a faint carved rosette.
+            Ring(0f, 0f, b.outerCircleRadius - 0.0055f, b.outerCircleRadius, ink);
+            Ring(0f, 0f, b.outerCircleRadius - 0.024f, b.outerCircleRadius - 0.0215f, rosette);
+
+            const int petals = 16;
+            for (int i = 0; i < petals; i++)
+            {
+                float angle = i * Mathf.PI * 2f / petals;
+                bool major = i % 2 == 0;
+                float innerR = 0.098f;
+                float outerR = major ? b.outerCircleRadius - 0.045f
+                                     : b.outerCircleRadius - 0.082f;
+                Petal(angle, innerR, outerR,
+                    major ? 0.032f : 0.020f, major ? 0.011f : 0.007f,
+                    rosette);
+            }
+
+            Ring(0f, 0f, 0.082f, 0.086f, ink);
+            Disc(0f, 0f, 0.052f, new Color(0.605f, 0.150f, 0.100f));
+            Ring(0f, 0f, 0.052f, 0.056f, ink);
+        }
+
+        // ------------------------------------------------------- draw helpers
+
+        private void Line(float x0, float z0, float x1, float z1,
+            float width, Color color)
+        {
+            float halfWidth = width * 0.5f;
+            float feather = texel;
+
+            int minX = ToTexelX(Mathf.Min(x0, x1) - halfWidth - feather * 2f);
+            int maxX = ToTexelX(Mathf.Max(x0, x1) + halfWidth + feather * 2f);
+            int minY = ToTexelY(Mathf.Min(z0, z1) - halfWidth - feather * 2f);
+            int maxY = ToTexelY(Mathf.Max(z0, z1) + halfWidth + feather * 2f);
+
+            Vector2 a = new Vector2(x0, z0);
+            Vector2 b = new Vector2(x1, z1);
+            Vector2 ab = b - a;
+            float lengthSq = Mathf.Max(0.000001f, ab.sqrMagnitude);
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                float wz = ToWorldZ(y);
+                for (int x = minX; x <= maxX; x++)
+                {
+                    Vector2 p = new Vector2(ToWorldX(x) - a.x, wz - a.y);
+                    float t = Mathf.Clamp01(Vector2.Dot(p, ab) / lengthSq);
+                    float distance = (p - ab * t).magnitude;
+                    float coverage = Mathf.Clamp01((halfWidth - distance) / feather + 0.5f);
+                    if (coverage > 0f)
+                        Blend(x, y, color, coverage, 0.94f);
+                }
+            }
+        }
+
+        private void Disc(float cx, float cz, float radius, Color color)
+        {
+            float feather = texel;
+            int minX = ToTexelX(cx - radius - feather * 2f);
+            int maxX = ToTexelX(cx + radius + feather * 2f);
+            int minY = ToTexelY(cz - radius - feather * 2f);
+            int maxY = ToTexelY(cz + radius + feather * 2f);
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                float dz = ToWorldZ(y) - cz;
+                for (int x = minX; x <= maxX; x++)
+                {
+                    float dx = ToWorldX(x) - cx;
+                    float distance = Mathf.Sqrt(dx * dx + dz * dz);
+                    float coverage = Mathf.Clamp01((radius - distance) / feather + 0.5f);
+                    if (coverage > 0f)
+                        Blend(x, y, color, coverage, 0.95f);
+                }
+            }
+        }
+
+        private void Ring(float cx, float cz, float inner, float outer, Color color)
+        {
+            float feather = texel;
+            int minX = ToTexelX(cx - outer - feather * 2f);
+            int maxX = ToTexelX(cx + outer + feather * 2f);
+            int minY = ToTexelY(cz - outer - feather * 2f);
+            int maxY = ToTexelY(cz + outer + feather * 2f);
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                float dz = ToWorldZ(y) - cz;
+                for (int x = minX; x <= maxX; x++)
+                {
+                    float dx = ToWorldX(x) - cx;
+                    float distance = Mathf.Sqrt(dx * dx + dz * dz);
+                    float outside = Mathf.Clamp01((outer - distance) / feather + 0.5f);
+                    float inside = Mathf.Clamp01((distance - inner) / feather + 0.5f);
+                    float coverage = outside * inside;
+                    if (coverage > 0f)
+                        Blend(x, y, color, coverage, 0.92f);
+                }
+            }
+        }
+
+        private void RoundedRectOutline(float halfExtent, float cornerRadius,
+            float thickness, Color color)
+        {
+            // Signed distance to a rounded square: negative inside. Stroking the
+            // zero-set gives the soft printed corners used on commercial boards.
+            float feather = texel;
+            float h = halfExtent;
+            float r = Mathf.Max(0.001f, cornerRadius);
+            float halfWidth = thickness * 0.5f;
+
+            int minX = ToTexelX(-h - thickness);
+            int maxX = ToTexelX(h + thickness);
+            int minY = ToTexelY(-h - thickness);
+            int maxY = ToTexelY(h + thickness);
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                float pz = ToWorldZ(y);
+                for (int x = minX; x <= maxX; x++)
+                {
+                    float px = ToWorldX(x);
+                    float qx = Mathf.Abs(px) - (h - r);
+                    float qz = Mathf.Abs(pz) - (h - r);
+                    float outside = Mathf.Sqrt(Mathf.Max(qx, 0f) * Mathf.Max(qx, 0f) +
+                                               Mathf.Max(qz, 0f) * Mathf.Max(qz, 0f))
+                                    + Mathf.Min(Mathf.Max(qx, qz), 0f) - r;
+                    float distance = Mathf.Abs(outside);
+                    float coverage = Mathf.Clamp01((halfWidth - distance) / feather + 0.5f);
+                    if (coverage > 0f)
+                        Blend(x, y, color, coverage, 0.88f);
+                }
+            }
+        }
+
+        private void Petal(float angle, float r0, float r1, float w0, float w1, Color color)
+        {
+            // A tapered spoke drawn as overlapping stamped discs: simpler than
+            // polygon rasterising and it softens the tip like real screen print.
+            const int steps = 10;
+            float cos = Mathf.Cos(angle);
+            float sin = Mathf.Sin(angle);
+
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = i / (float)steps;
+                float radius = Mathf.Lerp(r0, r1, t);
+                float width = Mathf.Lerp(w0, w1, t);
+                Disc(cos * radius, sin * radius, width * 0.5f, color);
+            }
+        }
+
+        private void Arrow(Vector2 start, Vector2 end, float shaftWidth,
+            float headWidth, float headLength, Color color)
+        {
+            Vector2 dir = (end - start).normalized;
+            Vector2 headBase = end - dir * headLength;
+            Line(start.x, start.y, headBase.x, headBase.y, shaftWidth, color);
+
+            const int steps = 8;
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = i / (float)steps;
+                Vector2 center = Vector2.Lerp(headBase, end, t);
+                Disc(center.x, center.y, Mathf.Lerp(headWidth * 0.5f, 0f, t), color);
+            }
+        }
+
+        private int ToTexelX(float worldX) { return Mathf.Clamp(Mathf.RoundToInt((worldX + half) / texel), 0, size - 1); }
+        private int ToTexelY(float worldZ) { return Mathf.Clamp(Mathf.RoundToInt((worldZ + half) / texel), 0, size - 1); }
+        private float ToWorldX(int index) { return -half + (index + 0.5f) * texel; }
+        private float ToWorldZ(int index) { return -half + (index + 0.5f) * texel; }
+
+        private void Blend(int x, int y, Color mark, float coverage, float alpha)
+        {
+            // Keep some of the underlying grain so the print looks dyed into
+            // the wood instead of sitting on top as flat vinyl.
+            int index = y * size + x;
+            Color32 under = pixels[index];
+            float t = coverage * alpha;
+            byte r = (byte)Mathf.Clamp(Mathf.RoundToInt(under.r + (mark.r * 255f - under.r) * t), 0, 255);
+            byte g = (byte)Mathf.Clamp(Mathf.RoundToInt(under.g + (mark.g * 255f - under.g) * t), 0, 255);
+            byte b = (byte)Mathf.Clamp(Mathf.RoundToInt(under.b + (mark.b * 255f - under.b) * t), 0, 255);
+            pixels[index] = new Color32(r, g, b, 255);
+        }
+
+        public Texture2D ToTexture(string name)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, true);
+            texture.name = name;
+            texture.SetPixels32(pixels);
+            texture.Apply(true, false);
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Trilinear;
+            texture.anisoLevel = 9;
+            return texture;
+        }
     }
 
     private Material CreateRosewoodMaterial()

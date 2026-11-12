@@ -197,6 +197,73 @@ public static class UITheme
     }
 
     /// <summary>
+    /// Procedural top-down striker used as the baseline slider knob. It samples
+    /// the same printed face as the 3D piece (ivory lacquer + red rosette),
+    /// overlays a turned gold rim and carries a soft drop shadow so it lifts
+    /// off the rail.
+    /// </summary>
+    public static Sprite StrikerIcon()
+    {
+        const string key = "striker_icon";
+        Sprite cached;
+        if (Cache.TryGetValue(key, out cached)) return cached;
+
+        int size = 256;
+        Texture2D face = ProceduralTextures.CreateStrikerFaceTexture(size);
+        Color32[] facePixels = face.GetPixels32();
+        Texture2D tex = NewTexture(size, size);
+        float half = size * 0.5f;
+
+        Color gold = new Color(0.900f, 0.700f, 0.330f);
+        Color goldDeep = new Color(0.500f, 0.335f, 0.095f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float px = (x + 0.5f - half) / half;
+                float py = (y + 0.5f - half) / half;
+                float r = Mathf.Sqrt(px * px + py * py);
+
+                Color c;
+                float alpha;
+
+                if (r > 1f)
+                {
+                    // Soft shadow just outside the rim, biased downwards.
+                    float sr = Mathf.Sqrt(px * px + (py + 0.055f) * (py + 0.055f));
+                    alpha = Mathf.Clamp01((1.13f - sr) / 0.13f) * 0.34f;
+                    c = new Color(0.03f, 0.02f, 0.012f);
+                }
+                else
+                {
+                    c = facePixels[y * size + x];
+
+                    if (r > 0.900f)
+                    {
+                        // Turned gold rim, brightest near the outer edge.
+                        c = Color.Lerp(goldDeep, gold, Mathf.Clamp01((1f - r) / 0.100f));
+                    }
+
+                    float light = Mathf.Clamp01(0.55f - px * 0.30f + py * 0.42f);
+                    c *= 0.92f + light * 0.14f;
+
+                    // Crisp anti-aliased circular edge.
+                    alpha = Mathf.Clamp01((1f - r) * half * 0.9f);
+                }
+
+                c.a = alpha;
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        tex.Apply(false, true);
+        Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        Cache[key] = sprite;
+        return sprite;
+    }
+
+    /// <summary>
     /// Circular player portrait generated from code: a lit human bust for the
     /// local player and a metallic robot for the AI. Used in the game HUD so
     /// both sides have a proper profile instead of a plain coin face.

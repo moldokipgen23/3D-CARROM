@@ -331,21 +331,21 @@ public class GameHUD : MonoBehaviour
 
     private void BuildBottomPanel(Transform parent)
     {
-        // --- Striker placement slider (Carrom King style baseline control) ---
+        // --- Striker placement slider (Carrom King style wooden rail) ---
         Image placementPanel = UITheme.Panel(parent, "PlacementPanel",
             new Color(0.085f, 0.058f, 0.038f, 0.92f), 30, true, 0.28f);
         UITheme.SetRect(placementPanel.rectTransform, new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 342f),
-            new Vector2(1000f, 104f));
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 322f),
+            new Vector2(1000f, 158f));
 
-        Text caption = UITheme.Label(placementPanel.transform, "Caption", "STRIKER POSITION", 13,
+        Text caption = UITheme.Label(placementPanel.transform, "Caption", "STRIKER POSITION", 14,
             TextAnchor.MiddleCenter, new Color(0.82f, 0.74f, 0.58f), FontStyle.Bold, false);
         UITheme.SetRect(caption.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f), new Vector2(0f, -9f), new Vector2(420f, 20f));
+            new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(420f, 20f));
 
         RectTransform sliderRoot = UITheme.Rect(placementPanel.transform, "PlacementSlider");
         UITheme.SetRect(sliderRoot, new Vector2(0f, 0f), new Vector2(1f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-120f, 52f));
+            new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-92f, 120f));
 
         Slider slider = sliderRoot.gameObject.AddComponent<Slider>();
         slider.direction = Slider.Direction.LeftToRight;
@@ -355,48 +355,47 @@ public class GameHUD : MonoBehaviour
         slider.value = 0f;
         slider.transition = Selectable.Transition.None;
 
-        Image track = UITheme.Panel(sliderRoot, "Track", new Color(0f, 0f, 0f, 0.52f), 10,
-            true, 0.28f);
+        // Warm wooden rail with a recessed groove; the control now belongs to
+        // the board instead of looking like a thin stock Unity slider.
+        Image track = UITheme.Panel(sliderRoot, "Track",
+            new Color(0.345f, 0.210f, 0.118f, 1f), 22, true, 0.45f);
         UITheme.SetRect(track.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-42f, 18f));
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-40f, 50f));
         track.raycastTarget = true;
 
+        Image groove = UITheme.Panel(track.transform, "Groove",
+            new Color(0.048f, 0.032f, 0.021f, 0.92f), 9);
+        UITheme.SetRect(groove.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, 16f));
+
         RectTransform fillArea = UITheme.Rect(sliderRoot, "FillArea");
-        UITheme.Stretch(fillArea, 22f, 22f, 0f, 0f);
+        UITheme.Stretch(fillArea, 34f, 34f, 52f, 52f);
         Image fill = UITheme.Rect(fillArea, "Fill").gameObject.AddComponent<Image>();
         fill.sprite = UITheme.Rounded(8, Color.white, Color.white, 0);
         fill.type = Image.Type.Sliced;
-        fill.color = new Color(0.96f, 0.77f, 0.34f, 0.26f);
+        fill.color = new Color(0.98f, 0.79f, 0.36f, 0.34f);
         fill.raycastTarget = false;
-        fill.rectTransform.anchorMin = new Vector2(0f, 0f);
-        fill.rectTransform.anchorMax = new Vector2(1f, 1f);
-        fill.rectTransform.offsetMin = new Vector2(0f, 17f);
-        fill.rectTransform.offsetMax = new Vector2(0f, -17f);
+        UITheme.Stretch(fill.rectTransform, 0f, 0f, 0f, 0f);
 
         RectTransform handleArea = UITheme.Rect(sliderRoot, "HandleSlideArea");
-        UITheme.Stretch(handleArea, 22f, 22f, 0f, 0f);
+        UITheme.Stretch(handleArea, 32f, 32f, 0f, 0f);
 
-        Image handle = UITheme.Circle(handleArea, "Handle", UITheme.Gold, 5,
-            new Color(1f, 0.93f, 0.72f));
+        // Large striker knob: the same turned gold/ivory/red piece as the board.
+        Image handle = UITheme.Icon(handleArea, "Handle", UITheme.StrikerIcon(), 104f);
         UITheme.SetRect(handle.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f),
-            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 0f));
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(104f, 0f));
         handle.raycastTarget = true;
 
-        Image handleCoin = UITheme.Icon(handle.transform, "HandleCoin",
-            UITheme.CoinIcon(true), 40f);
-        UITheme.SetRect(handleCoin.rectTransform, new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-            new Vector2(40f, 40f));
+        // Small brass screws that finish the rail ends.
+        Image leftCap = UITheme.Circle(track.transform, "LeftCap",
+            new Color(0.90f, 0.72f, 0.34f, 0.90f), 3, new Color(0.36f, 0.24f, 0.10f));
+        UITheme.SetRect(leftCap.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+            new Vector2(0.5f, 0.5f), new Vector2(24f, 0f), new Vector2(12f, 12f));
 
-        Image leftCap = UITheme.Circle(placementPanel.transform, "LeftCap",
-            new Color(0.86f, 0.78f, 0.62f, 0.55f));
-        UITheme.SetRect(leftCap.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
-            new Vector2(0f, 0.5f), new Vector2(34f, 36f), new Vector2(8f, 8f));
-
-        Image rightCap = UITheme.Circle(placementPanel.transform, "RightCap",
-            new Color(0.86f, 0.78f, 0.62f, 0.55f));
-        UITheme.SetRect(rightCap.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-            new Vector2(1f, 0.5f), new Vector2(-34f, 36f), new Vector2(8f, 8f));
+        Image rightCap = UITheme.Circle(track.transform, "RightCap",
+            new Color(0.90f, 0.72f, 0.34f, 0.90f), 3, new Color(0.36f, 0.24f, 0.10f));
+        UITheme.SetRect(rightCap.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(0.5f, 0.5f), new Vector2(-24f, 0f), new Vector2(12f, 12f));
 
         slider.fillRect = fill.rectTransform;
         slider.handleRect = handle.rectTransform;
@@ -444,7 +443,7 @@ public class GameHUD : MonoBehaviour
             new Vector2(0.5f, 0f), new Vector2(0f, 112f), new Vector2(990f, 58f));
 
         hintText = UITheme.Label(hintPanel.transform, "Hint",
-            "Drag striker to aim  ·  pinch or tap +/− to zoom", 22,
+            "Pull back to aim  ·  pinch or tap +/− to zoom", 22,
             TextAnchor.MiddleCenter, new Color(0.94f, 0.88f, 0.76f), FontStyle.Normal);
         UITheme.Stretch(hintText.rectTransform, 16f, 16f, 0f, 0f);
 
@@ -596,7 +595,7 @@ public class GameHUD : MonoBehaviour
             if (!over)
                 hintText.text = aiTurn
                     ? "Opponent is lining up a shot..."
-                    : "Drag striker to aim  ·  pinch or tap +/− to zoom";
+                    : "Pull back to aim  ·  pinch or tap +/− to zoom";
         }
 
         lastP1Score = p1Score;

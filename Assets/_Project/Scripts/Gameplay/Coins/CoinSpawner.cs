@@ -11,10 +11,11 @@ public class CoinSpawner : MonoBehaviour
     public int blackCoinCount = 9;
 
     [Header("Coin Dimensions")]
-    public float coinRadius = 0.0672f;
-    public float coinThickness = 0.040f;
-    public float coinSpacing = 0.0018f;
-    public float coinBevel = 0.0085f;
+    // 1.5x ICF scale for phone readability, matching commercial carrom titles.
+    public float coinRadius = 0.1008f;
+    public float coinThickness = 0.055f;
+    public float coinSpacing = 0.0027f;
+    public float coinBevel = 0.012f;
 
     [Header("Spawn")]
     public Vector3[] spawnPositions = new Vector3[19];
