@@ -114,6 +114,86 @@ public static class PieceMeshFactory
     }
 
     /// <summary>
+    /// Raised torus used for the gold inlay ring on the striker face. A real
+    /// striker has a turned metal band, and the raised ring catches the light so
+    /// the piece reads as a solid 3D object even under the near top-down camera.
+    /// </summary>
+    public static Mesh CreateTorus(float majorRadius, float tubeRadius,
+        int segments = 72, int tubeSegments = 10)
+    {
+        majorRadius = Mathf.Max(0.002f, majorRadius);
+        tubeRadius = Mathf.Clamp(tubeRadius, 0.0004f, majorRadius * 0.45f);
+        segments = Mathf.Clamp(segments, 12, 128);
+        tubeSegments = Mathf.Clamp(tubeSegments, 4, 24);
+
+        List<Vector3> verts = new List<Vector3>(segments * tubeSegments);
+        List<Vector2> uvs = new List<Vector2>(segments * tubeSegments);
+        List<int> triangles = new List<int>(segments * tubeSegments * 6);
+
+        for (int i = 0; i < segments; i++)
+        {
+            float theta = Mathf.PI * 2f * i / segments;
+            float cosTheta = Mathf.Cos(theta);
+            float sinTheta = Mathf.Sin(theta);
+
+            for (int j = 0; j < tubeSegments; j++)
+            {
+                float phi = Mathf.PI * 2f * j / tubeSegments;
+                float radial = majorRadius + Mathf.Cos(phi) * tubeRadius;
+
+                verts.Add(new Vector3(radial * cosTheta, Mathf.Sin(phi) * tubeRadius,
+                    radial * sinTheta));
+                uvs.Add(new Vector2((float)i / segments, (float)j / tubeSegments));
+            }
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            int nextI = (i + 1) % segments;
+            for (int j = 0; j < tubeSegments; j++)
+            {
+                int nextJ = (j + 1) % tubeSegments;
+
+                int a = i * tubeSegments + j;
+                int b = nextI * tubeSegments + j;
+                int c = nextI * tubeSegments + nextJ;
+                int d = i * tubeSegments + nextJ;
+
+                // Winding chosen so the normals point away from the tube core.
+                triangles.Add(a);
+                triangles.Add(c);
+                triangles.Add(b);
+
+                triangles.Add(a);
+                triangles.Add(d);
+                triangles.Add(c);
+            }
+        }
+
+        Mesh mesh = new Mesh();
+        mesh.name = "PieceTorus";
+        mesh.SetVertices(verts);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    /// <summary>Cached torus mesh so repeated striker builds share one mesh.</summary>
+    public static Mesh GetTorus(string key, float majorRadius, float tubeRadius,
+        int segments = 72, int tubeSegments = 10)
+    {
+        Mesh mesh;
+        if (meshCache.TryGetValue(key, out mesh) && mesh != null)
+            return mesh;
+
+        mesh = CreateTorus(majorRadius, tubeRadius, segments, tubeSegments);
+        meshCache[key] = mesh;
+        return mesh;
+    }
+
+    /// <summary>
     /// Low-poly cylinder used only for collision. Convex mesh colliders give the
     /// pieces a round footprint, so cut shots and ghost-ball aim behave like real
     /// discs instead of snagging on box corners.

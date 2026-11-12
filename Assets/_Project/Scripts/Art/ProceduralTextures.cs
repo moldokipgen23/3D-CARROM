@@ -101,7 +101,7 @@ public static class ProceduralTextures
     /// </summary>
     public static Texture2D CreateCoinFaceTexture(Color face, Color ring, bool queen = false, int size = 256)
     {
-        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
         tex.name = queen ? "QueenCoinFace" : "CoinFace";
         float half = size * 0.5f;
         Color gold = new Color(1f, 0.84f, 0.38f);
@@ -118,9 +118,11 @@ public static class ProceduralTextures
                 float relief = Mathf.Clamp01(1f - r * r);
                 Color c = Color.Lerp(face, Color.Lerp(face, Color.white, 0.18f), relief * 0.6f);
 
-                // Fine turned grooves left by the lathe.
-                float groove = 0.5f + 0.5f * Mathf.Sin(r * 230f);
-                c *= 0.972f + groove * 0.056f;
+                // Fine turned grooves left by the lathe. The frequency is kept
+                // low enough that the pattern survives minification instead of
+                // aliasing into a busy swirl at phone size.
+                float groove = 0.5f + 0.5f * Mathf.Sin(r * 118f);
+                c *= 0.978f + groove * 0.040f;
 
                 // Raised rings: dark inner lip, bright outer lip.
                 c = EmbossedBand(c, r, 0.845f, 0.955f, ring);
@@ -133,18 +135,12 @@ public static class ProceduralTextures
                 }
                 else
                 {
-                    // Twelve petal rosette stamped in the centre.
-                    float angle = Mathf.Atan2(py, px);
-                    float petal = 0.122f + Mathf.Cos(angle * 12f) * 0.048f;
-                    if (r < 0.205f)
-                    {
-                        if (r > 0.185f)
-                            c = Color.Lerp(c, ring, 0.8f);
-                        else if (r < petal)
-                            c = Color.Lerp(c, ring, 0.62f);
-                        else
-                            c = Color.Lerp(c, face, 0.45f);
-                    }
+                    // Real carrom coins are plain turned wood: a small centre
+                    // dimple and a fine stamped ring, no printed figure.
+                    if (r < 0.055f)
+                        c = Color.Lerp(c, ring, 0.45f);
+                    else if (r > 0.135f && r < 0.168f)
+                        c = Color.Lerp(c, ring, 0.28f);
                 }
 
                 // Glossy sheen from the key light (upper left of the face).
@@ -160,16 +156,16 @@ public static class ProceduralTextures
             }
         }
 
-        tex.Apply(false, true);
+        tex.Apply(true, true);
         tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
+        tex.filterMode = FilterMode.Trilinear;
         return tex;
     }
 
     /// <summary>Ivory striker face: polished lacquer with red and gold inlays.</summary>
     public static Texture2D CreateStrikerFaceTexture(int size = 256)
     {
-        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
         tex.name = "StrikerFace";
 
         Color ivory = new Color(0.98f, 0.95f, 0.88f);
@@ -189,7 +185,7 @@ public static class ProceduralTextures
                 float relief = Mathf.Clamp01(1f - r * r);
                 Color c = Color.Lerp(ivory, Color.white, relief * 0.35f);
 
-                float groove = 0.5f + 0.5f * Mathf.Sin(r * 210f);
+                float groove = 0.5f + 0.5f * Mathf.Sin(r * 120f);
                 c *= 0.978f + groove * 0.045f;
 
                 c = EmbossedBand(c, r, 0.905f, 0.965f, gold);
@@ -214,9 +210,9 @@ public static class ProceduralTextures
             }
         }
 
-        tex.Apply(false, true);
+        tex.Apply(true, true);
         tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
+        tex.filterMode = FilterMode.Trilinear;
         return tex;
     }
 

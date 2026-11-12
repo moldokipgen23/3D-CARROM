@@ -10,7 +10,7 @@ public class BoardSetup : MonoBehaviour
 
     [Header("Pockets (ICF: 4.45 cm)")]
     public float pocketRadius = 0.0872f;
-    public float pocketRimWidth = 0.009f;
+    public float pocketRimWidth = 0.012f;
 
     [Header("Base Lines (ICF: 47 cm lines, 3.18 cm apart)")]
     public float baseLineDistance = 0.99f;
@@ -35,6 +35,10 @@ public class BoardSetup : MonoBehaviour
     private static readonly Color LineBlack = new Color(0.075f, 0.055f, 0.042f);
     private static readonly Color LineRed = new Color(0.56f, 0.085f, 0.065f);
     private static readonly Color LineRedDark = new Color(0.36f, 0.05f, 0.04f);
+    // Muted wood tones for the decorative centre mandala, so the rosette reads
+    // as a carved board detail instead of bright paint under the coins.
+    private static readonly Color LineBrown = new Color(0.600f, 0.420f, 0.245f);
+    private static readonly Color LineBrownDark = new Color(0.480f, 0.330f, 0.195f);
 
     /// <summary>Top of the playing surface (surface cube: centre 0.041, half 0.0025).</summary>
     private float SurfaceTopY
@@ -347,11 +351,11 @@ public class BoardSetup : MonoBehaviour
         AddRing(parent.transform, "OuterCircle", 0f, 0f, outerCircleRadius - 0.0075f,
             outerCircleRadius, y, LineBlack);
         AddRing(parent.transform, "OuterCircleInner", 0f, 0f, outerCircleRadius - 0.032f,
-            outerCircleRadius - 0.028f, y2, LineRedDark);
+            outerCircleRadius - 0.028f, y2, LineBrownDark);
 
         // Fine decorative ring inside the outer circle.
         AddRing(parent.transform, "DecoRing", 0f, 0f, outerCircleRadius - 0.040f,
-            outerCircleRadius - 0.036f, y2, LineRedDark);
+            outerCircleRadius - 0.036f, y2, LineBrownDark);
 
         // Classic rosette: sixteen tapered petals alternating red and black,
         // held clear of the central red disc by a small inner ring.
@@ -364,7 +368,7 @@ public class BoardSetup : MonoBehaviour
             float outer = major ? outerCircleRadius - 0.050f : outerCircleRadius - 0.090f;
             AddSpoke(parent.transform, "Petal_" + i, inner, outer,
                 major ? 0.030f : 0.017f, major ? 0.009f : 0.006f,
-                angle, y3, major ? LineRed : LineBlack);
+                angle, y3, major ? LineBrown : LineBrownDark);
         }
 
         AddRing(parent.transform, "InnerCircle", 0f, 0f, 0.100f, 0.106f, y3, LineBlack);
@@ -444,7 +448,7 @@ public class BoardSetup : MonoBehaviour
             Vector2 start = end - dir * Mathf.Min(arrowLength, Vector2.Distance(gap, end));
 
             AddArrow(parent.transform, "CornerArrow_" + i, start, end, arrowWidth,
-                arrowWidth * 2.6f, 0.075f, y, LineBlack);
+                arrowWidth * 2.6f, 0.075f, y, LineRed);
         }
     }
 
@@ -642,13 +646,16 @@ public class BoardSetup : MonoBehaviour
                 int c = a + 1;
                 int d = b + 1;
 
+                // Counter-clockwise winding so the front faces point outwards;
+                // otherwise the brass pocket rim is back-face culled and the
+                // pocket reads as a flat black sticker.
                 triangles[triIdx++] = a;
-                triangles[triIdx++] = b;
                 triangles[triIdx++] = c;
+                triangles[triIdx++] = b;
 
                 triangles[triIdx++] = c;
-                triangles[triIdx++] = b;
                 triangles[triIdx++] = d;
+                triangles[triIdx++] = b;
             }
         }
 
@@ -735,7 +742,10 @@ public class BoardSetup : MonoBehaviour
 
     private Material CreateBrassMaterial()
     {
-        return CreateMaterial(new Color(0.97f, 0.82f, 0.42f), 0.9f, 0.95f);
+        // Heavy metalness goes almost black in Built-in without reflection
+        // probes, so the pocket rim and frame inlay use a bright diffuse brass
+        // with just enough metalness to catch the key light.
+        return CreateMaterial(new Color(1f, 0.85f, 0.45f), 0.30f, 0.92f);
     }
 
     private Material CreateTexturedMaterial(Texture2D texture, float metallic, float smoothness)

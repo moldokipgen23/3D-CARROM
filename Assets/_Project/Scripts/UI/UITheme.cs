@@ -196,6 +196,215 @@ public static class UITheme
         return sprite;
     }
 
+    /// <summary>
+    /// Circular player portrait generated from code: a lit human bust for the
+    /// local player and a metallic robot for the AI. Used in the game HUD so
+    /// both sides have a proper profile instead of a plain coin face.
+    /// </summary>
+    public static Sprite PlayerPortrait(bool human)
+    {
+        string key = human ? "portrait_human" : "portrait_ai";
+        Sprite cached;
+        if (Cache.TryGetValue(key, out cached)) return cached;
+
+        int size = 256;
+        Texture2D tex = NewTexture(size, size);
+        float half = size * 0.5f;
+
+        Color humanBgTop = new Color(0.16f, 0.30f, 0.24f);
+        Color humanBgBottom = new Color(0.05f, 0.10f, 0.08f);
+        Color aiBgTop = new Color(0.20f, 0.26f, 0.34f);
+        Color aiBgBottom = new Color(0.06f, 0.08f, 0.11f);
+
+        Color skin = new Color(0.86f, 0.66f, 0.48f);
+        Color skinShade = new Color(0.64f, 0.45f, 0.31f);
+        Color hair = new Color(0.13f, 0.085f, 0.06f);
+        Color cloth = new Color(0.22f, 0.36f, 0.46f);
+        Color clothShade = new Color(0.11f, 0.20f, 0.28f);
+
+        Color metal = new Color(0.76f, 0.80f, 0.84f);
+        Color metalShade = new Color(0.35f, 0.40f, 0.46f);
+        Color eye = new Color(1f, 0.72f, 0.26f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float px = (x + 0.5f - half) / half;
+                float py = (y + 0.5f - half) / half;
+                float r = Mathf.Sqrt(px * px + py * py);
+
+                // Feather the circular mask to nothing at the sprite edge. The
+                // texture starts uninitialised, so transparent pixels must be
+                // written explicitly or they can render as opaque grey corners.
+                float alpha = Mathf.Clamp01((1f - r) * half * 1.6f);
+                if (alpha <= 0.001f)
+                {
+                    tex.SetPixel(x, y, new Color(0f, 0f, 0f, 0f));
+                    continue;
+                }
+
+                float v = Mathf.Clamp01((py + 1f) * 0.5f);
+                Color c = Color.Lerp(human ? humanBgBottom : aiBgBottom,
+                                     human ? humanBgTop : aiBgTop, v);
+
+                // Soft vignette so the portrait frame reads as a lens.
+                float vig = Mathf.Clamp01(1f - r * r * 0.75f);
+                c *= Mathf.Lerp(0.55f, 1f, vig);
+
+                if (human)
+                {
+                    // Shoulders and jacket.
+                    float sx = px / 0.78f;
+                    float sy = (py + 0.72f) / 0.55f;
+                    float shoulder = sx * sx + sy * sy;
+                    if (sy > -0.2f && shoulder < 1f)
+                    {
+                        float t = Mathf.Clamp01((px + 0.4f) * 0.6f + (py + 0.7f) * 0.35f);
+                        c = Color.Lerp(clothShade, cloth, t);
+
+                        // Jacket collar framing the neck.
+                        if (Mathf.Abs(px) > 0.13f && Mathf.Abs(px) < 0.36f &&
+                            py > -0.64f && py < -0.40f)
+                            c = clothShade * 0.72f;
+                    }
+
+                    // Neck.
+                    if (Mathf.Abs(px) < 0.16f && py > -0.42f && py < -0.08f)
+                        c = Color.Lerp(skinShade, skin, Mathf.Clamp01((px + 0.16f) * 2f));
+
+                    // Head.
+                    float hx = px / 0.285f;
+                    float hy = (py - 0.12f) / 0.33f;
+                    float head = hx * hx + hy * hy;
+                    if (head < 1f)
+                    {
+                        float lit = Mathf.Clamp01(1f - Mathf.Sqrt(
+                            (px + 0.20f) * (px + 0.20f) + (py - 0.30f) * (py - 0.30f)) / 0.55f);
+                        c = Color.Lerp(skinShade, skin, 0.35f + lit * 0.65f);
+
+                        // Cheek warmth.
+                        float cheek = Mathf.Abs(px);
+                        if (cheek > 0.16f && cheek < 0.26f && py > -0.16f && py < 0.02f)
+                            c = Color.Lerp(c, new Color(0.82f, 0.50f, 0.38f), 0.18f);
+
+                        // Hair cap with a side part.
+                        float hairLine = 0.20f - px * 0.18f;
+                        if (py > hairLine)
+                            c = Color.Lerp(hair, new Color(0.22f, 0.15f, 0.10f), lit * 0.7f);
+                        if (Mathf.Abs(px) > 0.20f && py > -0.10f && py < 0.22f)
+                            c = Color.Lerp(c, hair, 0.55f);
+
+                        // Eyes: sclera, dark iris, catch light.
+                        float eyeX = 0.105f;
+                        float eyeY = 0.115f;
+                        for (int e = -1; e <= 1; e += 2)
+                        {
+                            float ex = px - e * eyeX;
+                            float ey = py - eyeY;
+                            float white = ex * ex / 0.0026f + ey * ey / 0.0011f;
+                            if (white < 1f)
+                            {
+                                c = new Color(0.96f, 0.94f, 0.90f);
+                                float iris = ex * ex / 0.0011f + ey * ey / 0.0011f;
+                                if (iris < 1f)
+                                    c = new Color(0.13f, 0.09f, 0.065f);
+                                float spark = (ex + 0.012f) * (ex + 0.012f) +
+                                               (ey - 0.009f) * (ey - 0.009f);
+                                if (spark < 0.00010f) c = Color.white;
+                            }
+
+                            // Brow.
+                            float brow = ex * ex / 0.0030f + (py - 0.175f) * (py - 0.175f) / 0.00035f;
+                            if (brow < 1f && py > eyeY)
+                                c = Color.Lerp(hair, skinShade, 0.25f);
+                        }
+
+                        // Nose and mouth.
+                        if (Mathf.Abs(px - 0.008f) < 0.026f && py > -0.02f && py < 0.075f)
+                            c = Color.Lerp(c, skinShade, 0.45f);
+                        if (Mathf.Abs(px) < 0.085f && py > -0.105f && py < -0.085f)
+                            c = Color.Lerp(skinShade, hair, 0.42f);
+                        if (Mathf.Abs(px) < 0.090f && py > -0.135f && py < -0.115f)
+                            c = Color.Lerp(c, skinShade, 0.35f);
+                    }
+
+                    // Ears.
+                    float earL = (px + 0.29f) * (px + 0.29f) + (py - 0.10f) * (py - 0.10f);
+                    float earR = (px - 0.29f) * (px - 0.29f) + (py - 0.10f) * (py - 0.10f);
+                    if (earL < 0.0035f || earR < 0.0035f)
+                        c = skinShade;
+                }
+                else
+                {
+                    // Shoulders: dark armour rather than a pale bust.
+                    float sx = px / 0.82f;
+                    float sy = (py + 0.78f) / 0.52f;
+                    if (sy > -0.2f && sx * sx + sy * sy < 1f)
+                    {
+                        float t = Mathf.Clamp01(1f - sy * 0.7f);
+                        c = Color.Lerp(metalShade * 0.30f, metalShade * 0.62f, t);
+
+                        // Shoulder plate highlights.
+                        if (Mathf.Abs(px) > 0.46f && Mathf.Abs(px) < 0.72f &&
+                            py > -0.86f && py < -0.50f)
+                            c = Color.Lerp(c, metal, 0.35f);
+                    }
+
+                    // Chest reactor.
+                    float core = px * px + (py + 0.50f) * (py + 0.50f);
+                    if (core < 0.0045f)
+                        c = Color.Lerp(eye, Color.white, 0.35f);
+                    else if (core < 0.0075f)
+                        c = metalShade * 0.55f;
+
+                    // Neck joint.
+                    if (Mathf.Abs(px) < 0.18f && py > -0.50f && py < -0.30f)
+                        c = metalShade * 0.65f;
+
+                    // Antenna.
+                    if (Mathf.Abs(px) < 0.018f && py > 0.34f && py < 0.58f)
+                        c = metal * 0.85f;
+                    if (px * px + (py - 0.60f) * (py - 0.60f) < 0.0022f)
+                        c = eye;
+
+                    // Head plate.
+                    float hx = px / 0.34f;
+                    float hy = (py - 0.08f) / 0.30f;
+                    float head = hx * hx + hy * hy;
+                    if (head < 1f)
+                    {
+                        float lit = Mathf.Clamp01(1f - Mathf.Sqrt(
+                            (px + 0.18f) * (px + 0.18f) + (py - 0.28f) * (py - 0.28f)) / 0.62f);
+                        c = Color.Lerp(metalShade, metal, 0.25f + lit * 0.75f);
+
+                        // Dark visor band.
+                        if (Mathf.Abs(px) < 0.255f && py > 0.055f && py < 0.205f)
+                            c = new Color(0.055f, 0.085f, 0.115f);
+
+                        // Eye sockets.
+                        float eyeL = (px + 0.135f) * (px + 0.135f) + (py - 0.12f) * (py - 0.12f);
+                        float eyeR = (px - 0.135f) * (px - 0.135f) + (py - 0.12f) * (py - 0.12f);
+                        if (eyeL < 0.0085f || eyeR < 0.0085f)
+                            c = Color.Lerp(eye, Color.white, Mathf.Clamp01(0.55f - eyeL * 55f));
+
+                        // Mouth grille.
+                        if (Mathf.Abs(px) < 0.14f && py > -0.145f && py < -0.115f)
+                            c = metalShade * 0.7f;
+                    }
+                }
+
+                c.a = alpha;
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        tex.Apply(false, true);
+        Sprite sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        Cache[key] = sprite;
+        return sprite;
+    }
+
     public static Sprite Sparkle(Color color)
     {
         string key = "spark_" + ColorKey(color);

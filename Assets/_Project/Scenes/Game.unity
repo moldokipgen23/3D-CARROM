@@ -566,17 +566,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ae9d3a549de4ceba89b04a1e489cd57, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  cameraDistance: 6.15
-  cameraHeight: 2
-  cameraAngle: 70
+  cameraDistance: 8
+  cameraAngle: 82
   smoothTime: 0.3
+  boardCenter: {x: 0, y: 0, z: 0}
+  fieldOfView: 52
+  autoFit: 1
+  fitMargin: 0.975
+  lookAtHeight: 0.15
+  zoom: 1
+  minZoom: 0.92
+  maxZoom: 1.6
+  zoomStep: 0.12
+  zoomLerpSpeed: 10
   strikerTarget: {fileID: 0}
   collisionLayer:
     serializedVersion: 2
     m_Bits: 0
   collisionOffset: 0.1
-  boardCenter: {x: 0, y: 0, z: 0.5}
-  fieldOfView: 55
 --- !u!114 &950005
 MonoBehaviour:
   m_ObjectHideFlags: 0

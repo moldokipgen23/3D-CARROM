@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using System;
 
 public class StrikerController : MonoBehaviour
@@ -17,6 +18,9 @@ public class StrikerController : MonoBehaviour
 
     [Header("Table Layout")]
     public float baselineZ = 0.99f;
+    // Two base-circle radii: the striker may sit between the base circles but
+    // never cover them (ICF rule).
+    public float baselineEndInset = 0.1246f;
     public float strikerRestY = 0.072f;
     public float strikerThickness = 0.056f;
     public float strikerBevel = 0.012f;
@@ -56,21 +60,51 @@ public class StrikerController : MonoBehaviour
 
     private void BuildStrikerVisual()
     {
-        Material rimMat = CreateSimpleMaterial(new Color(0.95f, 0.78f, 0.34f), 0.85f, 0.95f);
-        Material faceMat = CreateSimpleMaterial(Color.white, 0.05f, 0.86f);
+        // Warm turned brass for the rim, satin ivory for the printed face.
+        Material rimMat = CreateSimpleMaterial(new Color(0.96f, 0.78f, 0.33f), 0.90f, 0.96f);
+        Material faceMat = CreateSimpleMaterial(Color.white, 0.04f, 0.88f);
         faceMat.mainTexture = ProceduralTextures.CreateStrikerFaceTexture();
+        Material inlayMat = CreateSimpleMaterial(new Color(0.99f, 0.84f, 0.42f), 0.96f, 0.98f);
+        Material bossMat = CreateSimpleMaterial(new Color(0.98f, 0.79f, 0.34f), 0.30f, 0.80f);
 
         GameObject body = new GameObject("StrikerBody");
         body.transform.SetParent(transform, false);
 
         MeshFilter filter = body.AddComponent<MeshFilter>();
         filter.sharedMesh = PieceMeshFactory.GetDisc(
-            "Striker", strikerRadius, strikerThickness, strikerBevel);
+            "Striker", strikerRadius, strikerThickness, strikerBevel, 72);
 
         MeshRenderer renderer = body.AddComponent<MeshRenderer>();
         renderer.sharedMaterials = new Material[] { rimMat, faceMat };
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
         renderer.receiveShadows = true;
+
+        // Raised brass inlay ring sitting on the painted face band.
+        float dome = strikerBevel * 0.45f;
+        GameObject ring = new GameObject("StrikerInlayRing");
+        ring.transform.SetParent(transform, false);
+        ring.transform.localPosition = new Vector3(
+            0f, strikerThickness * 0.5f + dome * 0.62f, 0f);
+        MeshFilter ringFilter = ring.AddComponent<MeshFilter>();
+        ringFilter.sharedMesh = PieceMeshFactory.GetTorus(
+            "StrikerInlay", strikerRadius * 0.715f, 0.0034f, 72, 10);
+        MeshRenderer ringRenderer = ring.AddComponent<MeshRenderer>();
+        ringRenderer.sharedMaterial = inlayMat;
+        ringRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        ringRenderer.receiveShadows = true;
+
+        // Turned centre boss, like the hub of a real wooden striker.
+        GameObject boss = new GameObject("StrikerBoss");
+        boss.transform.SetParent(transform, false);
+        boss.transform.localPosition = new Vector3(
+            0f, strikerThickness * 0.5f + dome + 0.0022f, 0f);
+        MeshFilter bossFilter = boss.AddComponent<MeshFilter>();
+        bossFilter.sharedMesh = PieceMeshFactory.GetDisc(
+            "StrikerBoss", strikerRadius * 0.255f, 0.008f, 0.0018f, 48);
+        MeshRenderer bossRenderer = boss.AddComponent<MeshRenderer>();
+        bossRenderer.sharedMaterials = new Material[] { bossMat, bossMat };
+        bossRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        bossRenderer.receiveShadows = true;
 
         // Grounds the striker on the board and gives it visible thickness.
         PieceMeshFactory.CreateContactShadow(
@@ -182,6 +216,11 @@ public class StrikerController : MonoBehaviour
 
     private void HandleInput()
     {
+        // Touches that begin on HUD widgets (zoom buttons, the baseline slider)
+        // must not also start a board drag underneath them.
+        if (Input.GetMouseButtonDown(0) && IsPointerOverUI())
+            return;
+
         if (Input.GetMouseButtonDown(0))
         {
             if (mainCamera == null)
@@ -232,13 +271,33 @@ public class StrikerController : MonoBehaviour
 
     private bool IsOnBaseline(Vector3 position)
     {
-        return Mathf.Abs(position.z - baselineZ) < 0.30f
+        // Player 1 uses the near line (-baselineZ), the AI the far line
+        // (+baselineZ), so accept whichever line is closer.
+        float nearest = Mathf.Min(Mathf.Abs(position.z - baselineZ),
+            Mathf.Abs(position.z + baselineZ));
+        return nearest < 0.30f
                && Mathf.Abs(position.x) < baselineWidth * 0.5f + 0.12f;
+    }
+
+    private bool IsPointerOverUI()
+    {
+        if (EventSystem.current == null) return false;
+
+        if (Input.touchCount > 0)
+            return EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
+
+        return EventSystem.current.IsPointerOverGameObject();
+    }
+
+    /// <summary>Largest legal distance from the centre of the baseline.</summary>
+    public float BaselineLimit
+    {
+        get { return Mathf.Max(0f, baselineWidth * 0.5f - baselineEndInset - strikerRadius); }
     }
 
     private void SlideStrikerTo(float x)
     {
-        float half = baselineWidth * 0.5f;
+        float half = BaselineLimit;
         float clamped = Mathf.Clamp(x, -half, half);
         SetPosition(new Vector3(clamped, transform.position.y, baselineZ));
     }
@@ -492,7 +551,7 @@ public class StrikerController : MonoBehaviour
 
     public void PlaceOnBaseline(float x)
     {
-        float half = Mathf.Max(0f, baselineWidth * 0.5f - strikerRadius);
+        float half = BaselineLimit;
         x = Mathf.Clamp(x, -half, half);
 
         Vector3 pos = transform.position;
@@ -507,7 +566,7 @@ public class StrikerController : MonoBehaviour
     /// </summary>
     public IEnumerator SlideAlongBaseline(float targetX, float duration = 0.45f)
     {
-        float half = Mathf.Max(0f, baselineWidth * 0.5f - strikerRadius);
+        float half = BaselineLimit;
         targetX = Mathf.Clamp(targetX, -half, half);
 
         Vector3 start = new Vector3(transform.position.x, strikerRestY, baselineZ);
@@ -549,14 +608,20 @@ public class StrikerController : MonoBehaviour
         // them clear so the next shot starts from a clean, stable position.
         ClearCoinsAt(pos);
 
-        transform.position = pos;
-
         if (Rigidbody != null)
         {
-            Rigidbody.isKinematic = false;
+            // Hold the striker still at the baseline. A non-kinematic body with
+            // interpolation enabled overwrites transform.position with its old
+            // physics position on the next frame, which made slider placement
+            // snap back to the centre. The shot re-enables dynamics.
+            Rigidbody.isKinematic = true;
             Rigidbody.linearVelocity = Vector3.zero;
             Rigidbody.angularVelocity = Vector3.zero;
+            Rigidbody.position = pos;
+            Rigidbody.rotation = Quaternion.identity;
         }
+
+        transform.position = pos;
     }
 
     private void ClearCoinsAt(Vector3 pos)

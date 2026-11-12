@@ -173,7 +173,7 @@ public class AIPlayer : MonoBehaviour
         }
 
         float baselineZ = strikerController.baselineZ;
-        float limit = strikerController.baselineWidth * 0.5f - strikerController.strikerRadius;
+        float limit = strikerController.BaselineLimit;
         float contactDistance = strikerController.strikerRadius + coinRadius;
 
         float bestScore = float.MaxValue;
@@ -281,7 +281,7 @@ public class AIPlayer : MonoBehaviour
         if (coins.Length == 0) return false;
 
         float baselineZ = strikerController.baselineZ;
-        float limit = strikerController.baselineWidth * 0.5f - strikerController.strikerRadius;
+        float limit = strikerController.BaselineLimit;
         Vector3 intoBoard = new Vector3(0f, 0f, -1f);
 
         Coin best = null;

@@ -35,11 +35,18 @@ public class GameHUD : MonoBehaviour
     private Image player2Card;
     private Image player1Accent;
     private Image player2Accent;
+    private Image player1Progress;
+    private Image player2Progress;
+    private Image player1AvatarRing;
+    private Image player2AvatarRing;
     private Image powerFill;
     private RectTransform powerRow;
     private GameObject powerRoot;
     private Text powerValueText;
     private StrikerController striker;
+    private CarromCameraController cameraController;
+    private Slider placementSlider;
+    private bool syncingPlacement;
     private Coroutine toastRoutine;
     private int lastP1Score = -1;
     private int lastP2Score = -1;
@@ -77,6 +84,7 @@ public class GameHUD : MonoBehaviour
         }
 
         striker = FindObjectOfType<StrikerController>(true);
+        cameraController = FindObjectOfType<CarromCameraController>(true);
     }
 
     private void Subscribe()
@@ -115,9 +123,9 @@ public class GameHUD : MonoBehaviour
         UITheme.ApplySafeArea(safe);
 
         Color shadeColor = new Color(0.05f, 0.035f, 0.025f);
-        Image topShade = UITheme.Gradient(safe, "TopShade", shadeColor, shadeColor, 0.88f, 0f);
+        Image topShade = UITheme.Gradient(safe, "TopShade", shadeColor, shadeColor, 0.90f, 0f);
         UITheme.SetRect(topShade.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-            new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 460f));
+            new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 500f));
 
         Image bottomShade = UITheme.Gradient(safe, "BottomShade", shadeColor, shadeColor, 0f, 0.90f);
         UITheme.SetRect(bottomShade.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
@@ -132,6 +140,7 @@ public class GameHUD : MonoBehaviour
         BuildPlayerCard(safe, true);
         BuildPlayerCard(safe, false);
         BuildCenterPanel(safe);
+        BuildZoomControls(safe);
         BuildBottomPanel(safe);
 
         toastText = UITheme.Label(safe, "Toast", "", 44, TextAnchor.MiddleCenter, UITheme.Gold,
@@ -144,127 +153,274 @@ public class GameHUD : MonoBehaviour
     private void BuildPlayerCard(Transform parent, bool left)
     {
         Image card = UITheme.Panel(parent, left ? "Player1Card" : "Player2Card",
-            UITheme.PanelBg, 34, true, 0.35f);
+            UITheme.PanelBg, 36, true, 0.35f);
         Vector2 corner = left ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
-        Vector2 pivot = left ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
-        float x = left ? 18f : -18f;
-        UITheme.SetRect(card.rectTransform, corner, corner, pivot, new Vector2(x, -18f),
-            new Vector2(362f, 156f));
+        float x = left ? 14f : -14f;
+        UITheme.SetRect(card.rectTransform, corner, corner, corner, new Vector2(x, -14f),
+            new Vector2(380f, 176f));
 
         if (left) player1Card = card; else player2Card = card;
 
         float side = left ? 0f : 1f;
         float dir = left ? 1f : -1f;
+        Vector2 sideTop = new Vector2(side, 1f);
+        Vector2 sideMid = new Vector2(side, 0.5f);
+        Vector2 sideBottom = new Vector2(side, 0f);
 
-        // Active-turn accent strip along the inner edge.
-        Image accent = UITheme.Panel(card.transform, "Accent", new Color(1f, 1f, 1f, 0f), 12);
+        // Active-turn accent strip along the inner edge. The sprite is plain
+        // white so Refresh() can tint it gold or fade it out.
+        Image accent = UITheme.Rect(card.transform, "Accent").gameObject.AddComponent<Image>();
+        accent.sprite = UITheme.Rounded(6, Color.white, Color.white, 0);
+        accent.type = Image.Type.Sliced;
+        accent.color = new Color(1f, 1f, 1f, 0f);
+        accent.raycastTarget = false;
         UITheme.SetRect(accent.rectTransform, new Vector2(side, 0f), new Vector2(side, 1f),
-            new Vector2(side, 0.5f), new Vector2(dir * 6f, 0f), new Vector2(8f, -22f));
+            new Vector2(side, 0.5f), new Vector2(dir * 6f, 0f), new Vector2(8f, -26f));
         if (left) player1Accent = accent; else player2Accent = accent;
 
-        // Avatar with the player's coin face.
-        Image ring = UITheme.Circle(card.transform, "AvatarRing",
-            left ? UITheme.Cream : new Color(0.16f, 0.13f, 0.10f));
-        UITheme.SetRect(ring.rectTransform, new Vector2(side, 0.5f), new Vector2(side, 0.5f),
-            new Vector2(side, 0.5f), new Vector2(dir * 14f, 0f), new Vector2(84f, 84f));
+        // Portrait: gold rim with a generated bust / robot inside.
+        Image ring = UITheme.Circle(card.transform, "AvatarRing", UITheme.Gold,
+            4, left ? UITheme.Gold : new Color(0.62f, 0.60f, 0.56f));
+        UITheme.SetRect(ring.rectTransform, sideMid, sideMid, sideMid,
+            new Vector2(dir * 18f, 4f), new Vector2(104f, 104f));
+        if (left) player1AvatarRing = ring; else player2AvatarRing = ring;
 
-        Image avatar = UITheme.Circle(card.transform, "Avatar",
-            left ? new Color(0.78f, 0.70f, 0.55f) : new Color(0.10f, 0.09f, 0.08f));
-        UITheme.SetRect(avatar.rectTransform, new Vector2(side, 0.5f), new Vector2(side, 0.5f),
-            new Vector2(side, 0.5f), new Vector2(dir * 19f, 0f), new Vector2(74f, 74f));
+        Image portrait = UITheme.Rect(card.transform, "Portrait").gameObject.AddComponent<Image>();
+        portrait.sprite = UITheme.PlayerPortrait(left);
+        portrait.preserveAspect = true;
+        portrait.raycastTarget = false;
+        UITheme.SetRect(portrait.rectTransform, sideMid, sideMid, sideMid,
+            new Vector2(dir * 18f, 4f), new Vector2(90f, 90f));
 
-        Image coinFace = UITheme.Icon(avatar.transform, "AvatarCoin", UITheme.CoinIcon(left), 52f);
-        UITheme.SetRect(coinFace.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
+        // Small coin badge anchored to the portrait is deliberately omitted:
+        // the black player's coin vanished against a dark badge, leaving an odd
+        // black blob on the avatar. The score row already carries the tally.
 
-        // Name + coin colour.
+        // Text block, mirrored for the right-hand card.
         TextAnchor align = left ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
-        float textX = dir * 108f;
-        float textW = 236f;
+        float textX = dir * 126f;
+        float textW = 232f;
 
-        player1Label = left
-            ? UITheme.Label(card.transform, "PlayerLabel", "YOU", 27, align, UITheme.Cream)
-            : null;
-        player2Label = left
-            ? null
-            : UITheme.Label(card.transform, "PlayerLabel", "AI", 27, align, UITheme.Cream);
+        if (left)
+            player1Label = UITheme.Label(card.transform, "PlayerLabel", "YOU", 30, align, UITheme.Cream);
+        else
+            player2Label = UITheme.Label(card.transform, "PlayerLabel", "ROOKIE", 30, align, UITheme.Cream);
 
         Text label = left ? player1Label : player2Label;
-        UITheme.SetRect(label.rectTransform, new Vector2(side, 1f), new Vector2(side, 1f),
-            new Vector2(side, 1f), new Vector2(textX, -18f), new Vector2(textW, 34f));
+        UITheme.SetRect(label.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(textX, -12f), new Vector2(textW, 34f));
 
-        Text subtitle = UITheme.Label(card.transform, "Subtitle", left ? "WHITE" : "BLACK", 18,
-            align, new Color(0.74f, 0.68f, 0.58f, 0.95f), FontStyle.Normal);
-        UITheme.SetRect(subtitle.rectTransform, new Vector2(side, 1f), new Vector2(side, 1f),
-            new Vector2(side, 1f), new Vector2(textX, -48f), new Vector2(textW, 24f));
+        // Level / rank chip under the name.
+        Image levelChip = UITheme.Panel(card.transform, "LevelChip",
+            new Color(0.98f, 0.85f, 0.50f, 0.16f), 13, true, 0.45f);
+        UITheme.SetRect(levelChip.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(textX, -48f), new Vector2(112f, 26f));
 
-        // Score row.
-        Image scoreCoin = UITheme.Icon(card.transform, "ScoreCoin", UITheme.CoinIcon(left), 34f);
-        UITheme.SetRect(scoreCoin.rectTransform, new Vector2(side, 0f), new Vector2(side, 0f),
-            new Vector2(side, 0f), new Vector2(textX + dir * 17f, 24f), new Vector2(34f, 34f));
+        Text level = UITheme.Label(levelChip.transform, "LevelText",
+            left ? "WHITE · LV 12" : "BLACK · LV 8", 13, TextAnchor.MiddleCenter,
+            new Color(0.98f, 0.88f, 0.64f), FontStyle.Bold, false);
+        UITheme.Stretch(level.rectTransform, 4f, 4f, 0f, 0f);
 
-        Text score = UITheme.Label(card.transform, "Score", "0", 40, align, UITheme.Gold);
-        UITheme.SetRect(score.rectTransform, new Vector2(side, 0f), new Vector2(side, 0f),
-            new Vector2(side, 0f), new Vector2(textX + dir * 44f, 20f), new Vector2(70f, 44f));
+        // Coin tally, kept in reading order (coin, number, "/ 9") on both cards.
+        // The right-hand card starts further left so the tally never runs under
+        // the portrait.
+        float scoreStart = left ? 126f : 132f;
+        float ofOffset = left ? 96f : 82f;
+        Vector2 scoreAnchor = new Vector2(0f, 1f);
 
-        Text of = UITheme.Label(card.transform, "Of", "/9", 20, align,
-            new Color(0.74f, 0.68f, 0.58f, 0.9f), FontStyle.Normal);
-        UITheme.SetRect(of.rectTransform, new Vector2(side, 0f), new Vector2(side, 0f),
-            new Vector2(side, 0f), new Vector2(textX + dir * 104f, 22f), new Vector2(44f, 28f));
+        Image scoreCoin = UITheme.Icon(card.transform, "ScoreCoin", UITheme.CoinIcon(left), 30f);
+        UITheme.SetRect(scoreCoin.rectTransform, scoreAnchor, scoreAnchor, scoreAnchor,
+            new Vector2(scoreStart, -82f), new Vector2(30f, 30f));
+
+        Text score = UITheme.Label(card.transform, "Score", "0", 36, TextAnchor.MiddleLeft,
+            UITheme.Gold);
+        UITheme.SetRect(score.rectTransform, scoreAnchor, scoreAnchor, scoreAnchor,
+            new Vector2(scoreStart + 36f, -76f), new Vector2(56f, 38f));
+
+        Text of = UITheme.Label(card.transform, "Of", "/ 9", 19, TextAnchor.MiddleLeft,
+            new Color(0.80f, 0.74f, 0.63f, 0.95f), FontStyle.Normal);
+        UITheme.SetRect(of.rectTransform, scoreAnchor, scoreAnchor, scoreAnchor,
+            new Vector2(scoreStart + ofOffset, -78f), new Vector2(48f, 28f));
+
+        // Thin progress bar showing how many of the nine coins are home.
+        Image track = UITheme.Panel(card.transform, "ProgressTrack",
+            new Color(0f, 0f, 0f, 0.38f), 5);
+        UITheme.SetRect(track.rectTransform, sideBottom, sideBottom, sideBottom,
+            new Vector2(textX, 14f), new Vector2(textW, 8f));
+
+        Image fill = UITheme.Rect(track.transform, "ProgressFill").gameObject.AddComponent<Image>();
+        fill.sprite = UITheme.Rounded(5, Color.white, Color.white, 0);
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Horizontal;
+        fill.fillOrigin = left ? 0 : 1;
+        fill.fillAmount = 0f;
+        fill.color = left ? UITheme.Gold : new Color(0.78f, 0.76f, 0.70f);
+        fill.raycastTarget = false;
+        UITheme.Stretch(fill.rectTransform, 0f, 0f, 0f, 0f);
 
         if (left)
         {
             player1ScoreText = score;
+            player1Progress = fill;
             player1UI = card.gameObject;
         }
         else
         {
             player2ScoreText = score;
+            player2Progress = fill;
             player2UI = card.gameObject;
         }
     }
 
     private void BuildCenterPanel(Transform parent)
     {
-        turnIndicator = UITheme.Panel(parent, "TurnPill", new Color(0.12f, 0.08f, 0.05f, 0.95f), 26, true, 0.8f);
+        turnIndicator = UITheme.Panel(parent, "TurnPill", new Color(0.10f, 0.07f, 0.045f, 0.96f),
+            24, true, 0.85f);
         UITheme.SetRect(turnIndicator.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f), new Vector2(0f, -26f), new Vector2(286f, 60f));
+            new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(238f, 58f));
 
-        currentTurnText = UITheme.Label(turnIndicator.transform, "TurnText", "YOUR TURN", 24,
+        currentTurnText = UITheme.Label(turnIndicator.transform, "TurnText", "YOUR TURN", 23,
             TextAnchor.MiddleCenter, UITheme.Gold);
-        UITheme.Stretch(currentTurnText.rectTransform, 0f, 0f, 0f, 0f);
+        UITheme.Stretch(currentTurnText.rectTransform, 8f, 8f, 0f, 0f);
 
-        Image queenChip = UITheme.Panel(parent, "QueenChip", new Color(0.12f, 0.08f, 0.05f, 0.92f), 20);
+        Image queenChip = UITheme.Panel(parent, "QueenChip", new Color(0.10f, 0.07f, 0.045f, 0.92f), 20);
         UITheme.SetRect(queenChip.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f), new Vector2(0f, -196f), new Vector2(328f, 46f));
+            new Vector2(0.5f, 1f), new Vector2(0f, -196f), new Vector2(300f, 44f));
 
         Image queenDot = UITheme.Circle(queenChip.transform, "QueenDot", new Color(0.72f, 0.12f, 0.11f));
         UITheme.SetRect(queenDot.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(20f, 20f));
+            new Vector2(0f, 0.5f), new Vector2(16f, 0f), new Vector2(18f, 18f));
 
         player3ScoreText = UITheme.Label(queenChip.transform, "QueenText", "QUEEN · ON BOARD", 18,
             TextAnchor.MiddleLeft, new Color(0.93f, 0.86f, 0.72f), FontStyle.Bold);
         UITheme.SetRect(player3ScoreText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f),
-            new Vector2(0f, 0.5f), new Vector2(44f, 0f), new Vector2(-54f, 32f));
+            new Vector2(0f, 0.5f), new Vector2(42f, 0f), new Vector2(-52f, 30f));
+    }
+
+    private void BuildZoomControls(Transform parent)
+    {
+        // Compact zoom pill tucked under the opponent card, over the empty wood
+        // above the board so it never covers coins or the striker.
+        Image zoomPanel = UITheme.Panel(parent, "ZoomPanel", new Color(0.08f, 0.055f, 0.035f, 0.80f),
+            28, true, 0.35f);
+        UITheme.SetRect(zoomPanel.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f),
+            new Vector2(1f, 1f), new Vector2(-14f, -198f), new Vector2(154f, 60f));
+
+        BuildZoomButton(zoomPanel.transform, "ZoomOut", "–", -38f, -1);
+        BuildZoomButton(zoomPanel.transform, "ZoomIn", "+", 38f, 1);
+    }
+
+    private void BuildZoomButton(Transform parent, string name, string label, float x, int direction)
+    {
+        Button button = UITheme.Button(parent, name, label, new Color(0.20f, 0.14f, 0.09f, 0.95f),
+            UITheme.Cream, 34, 24, true);
+        UITheme.SetRect(button.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, 0f),
+            new Vector2(54f, 48f));
+
+        button.onClick.AddListener(() =>
+        {
+            if (cameraController == null)
+                cameraController = FindObjectOfType<CarromCameraController>(true);
+            if (cameraController == null) return;
+
+            if (direction > 0) cameraController.ZoomIn();
+            else cameraController.ZoomOut();
+        });
     }
 
     private void BuildBottomPanel(Transform parent)
     {
+        // --- Striker placement slider (Carrom King style baseline control) ---
+        Image placementPanel = UITheme.Panel(parent, "PlacementPanel",
+            new Color(0.085f, 0.058f, 0.038f, 0.92f), 30, true, 0.28f);
+        UITheme.SetRect(placementPanel.rectTransform, new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 342f),
+            new Vector2(1000f, 104f));
+
+        Text caption = UITheme.Label(placementPanel.transform, "Caption", "STRIKER POSITION", 13,
+            TextAnchor.MiddleCenter, new Color(0.82f, 0.74f, 0.58f), FontStyle.Bold, false);
+        UITheme.SetRect(caption.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -9f), new Vector2(420f, 20f));
+
+        RectTransform sliderRoot = UITheme.Rect(placementPanel.transform, "PlacementSlider");
+        UITheme.SetRect(sliderRoot, new Vector2(0f, 0f), new Vector2(1f, 0f),
+            new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-120f, 52f));
+
+        Slider slider = sliderRoot.gameObject.AddComponent<Slider>();
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = -1f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.value = 0f;
+        slider.transition = Selectable.Transition.None;
+
+        Image track = UITheme.Panel(sliderRoot, "Track", new Color(0f, 0f, 0f, 0.52f), 10,
+            true, 0.28f);
+        UITheme.SetRect(track.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-42f, 18f));
+        track.raycastTarget = true;
+
+        RectTransform fillArea = UITheme.Rect(sliderRoot, "FillArea");
+        UITheme.Stretch(fillArea, 22f, 22f, 0f, 0f);
+        Image fill = UITheme.Rect(fillArea, "Fill").gameObject.AddComponent<Image>();
+        fill.sprite = UITheme.Rounded(8, Color.white, Color.white, 0);
+        fill.type = Image.Type.Sliced;
+        fill.color = new Color(0.96f, 0.77f, 0.34f, 0.26f);
+        fill.raycastTarget = false;
+        fill.rectTransform.anchorMin = new Vector2(0f, 0f);
+        fill.rectTransform.anchorMax = new Vector2(1f, 1f);
+        fill.rectTransform.offsetMin = new Vector2(0f, 17f);
+        fill.rectTransform.offsetMax = new Vector2(0f, -17f);
+
+        RectTransform handleArea = UITheme.Rect(sliderRoot, "HandleSlideArea");
+        UITheme.Stretch(handleArea, 22f, 22f, 0f, 0f);
+
+        Image handle = UITheme.Circle(handleArea, "Handle", UITheme.Gold, 5,
+            new Color(1f, 0.93f, 0.72f));
+        UITheme.SetRect(handle.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 0f));
+        handle.raycastTarget = true;
+
+        Image handleCoin = UITheme.Icon(handle.transform, "HandleCoin",
+            UITheme.CoinIcon(true), 40f);
+        UITheme.SetRect(handleCoin.rectTransform, new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
+            new Vector2(40f, 40f));
+
+        Image leftCap = UITheme.Circle(placementPanel.transform, "LeftCap",
+            new Color(0.86f, 0.78f, 0.62f, 0.55f));
+        UITheme.SetRect(leftCap.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
+            new Vector2(0f, 0.5f), new Vector2(34f, 36f), new Vector2(8f, 8f));
+
+        Image rightCap = UITheme.Circle(placementPanel.transform, "RightCap",
+            new Color(0.86f, 0.78f, 0.62f, 0.55f));
+        UITheme.SetRect(rightCap.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
+            new Vector2(1f, 0.5f), new Vector2(-34f, 36f), new Vector2(8f, 8f));
+
+        slider.fillRect = fill.rectTransform;
+        slider.handleRect = handle.rectTransform;
+        slider.targetGraphic = handle;
+        slider.onValueChanged.AddListener(HandlePlacementChanged);
+        placementSlider = slider;
+
+        // --- Power meter, shown only while pulling a shot ---
         powerRoot = UITheme.Rect(parent, "PowerRoot").gameObject;
         RectTransform powerRootRt = powerRoot.GetComponent<RectTransform>();
         UITheme.SetRect(powerRootRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(0f, 176f), new Vector2(820f, 52f));
+            new Vector2(0.5f, 0f), new Vector2(0f, 226f), new Vector2(900f, 52f));
 
         Text powerLabel = UITheme.Label(powerRoot.transform, "PowerLabel", "POWER", 20,
             TextAnchor.MiddleLeft, new Color(0.86f, 0.78f, 0.62f), FontStyle.Bold);
         UITheme.SetRect(powerLabel.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f),
             new Vector2(0f, 0.5f), Vector2.zero, new Vector2(110f, 0f));
 
-        Image track = UITheme.Panel(powerRoot.transform, "Track", new Color(0.08f, 0.055f, 0.035f, 0.95f), 10, true, 0.3f);
-        UITheme.SetRect(track.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+        Image powerTrack = UITheme.Panel(powerRoot.transform, "Track",
+            new Color(0.08f, 0.055f, 0.035f, 0.95f), 10, true, 0.3f);
+        UITheme.SetRect(powerTrack.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
             new Vector2(0f, 0.5f), new Vector2(112f, 0f), new Vector2(-118f, 30f));
 
-        powerFill = UITheme.Rect(track.transform, "Fill").gameObject.AddComponent<Image>();
+        powerFill = UITheme.Rect(powerTrack.transform, "Fill").gameObject.AddComponent<Image>();
         powerFill.sprite = UITheme.Rounded(10, Color.white, Color.white, 0);
         powerFill.type = Image.Type.Filled;
         powerFill.fillMethod = Image.FillMethod.Horizontal;
@@ -282,25 +438,69 @@ public class GameHUD : MonoBehaviour
         powerRow = powerRootRt;
         powerRoot.SetActive(false);
 
-        Image hintPanel = UITheme.Panel(parent, "HintPanel", new Color(0.10f, 0.07f, 0.045f, 0.90f), 28);
+        Image hintPanel = UITheme.Panel(parent, "HintPanel",
+            new Color(0.10f, 0.07f, 0.045f, 0.90f), 28);
         UITheme.SetRect(hintPanel.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(0f, 92f), new Vector2(960f, 62f));
+            new Vector2(0.5f, 0f), new Vector2(0f, 112f), new Vector2(990f, 58f));
 
         hintText = UITheme.Label(hintPanel.transform, "Hint",
-            "Drag from the striker to aim  ·  release to shoot", 24,
+            "Drag striker to aim  ·  pinch or tap +/− to zoom", 22,
             TextAnchor.MiddleCenter, new Color(0.94f, 0.88f, 0.76f), FontStyle.Normal);
         UITheme.Stretch(hintText.rectTransform, 16f, 16f, 0f, 0f);
 
-        remainingCoinsText = UITheme.Label(parent, "RemainingCoins", "18 COINS ON BOARD", 21,
+        remainingCoinsText = UITheme.Label(parent, "RemainingCoins", "18 COINS ON BOARD", 20,
             TextAnchor.MiddleCenter, new Color(0.72f, 0.66f, 0.56f, 0.85f), FontStyle.Normal);
-        UITheme.SetRect(remainingCoinsText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(700f, 32f));
+        UITheme.SetRect(remainingCoinsText.rectTransform, new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 62f),
+            new Vector2(700f, 30f));
+    }
+
+    private void HandlePlacementChanged(float value)
+    {
+        if (syncingPlacement) return;
+
+        if (striker == null)
+            striker = FindObjectOfType<StrikerController>();
+        if (striker == null) return;
+
+        if (turnManager != null)
+        {
+            if (turnManager.IsShotInProgress()) return;
+            if (turnManager.aiControlsPlayer2 && turnManager.GetCurrentPlayer() == 2) return;
+        }
+
+        striker.PlaceOnBaseline(value * striker.BaselineLimit);
+    }
+
+    private void UpdatePlacementSlider()
+    {
+        if (placementSlider == null || striker == null) return;
+
+        bool canPlace = true;
+        if (turnManager != null)
+        {
+            if (turnManager.IsShotInProgress()) canPlace = false;
+            if (turnManager.aiControlsPlayer2 && turnManager.GetCurrentPlayer() == 2)
+                canPlace = false;
+        }
+
+        placementSlider.interactable = canPlace;
+
+        if (!canPlace || striker.IsAiming) return;
+
+        float limit = Mathf.Max(0.0001f, striker.BaselineLimit);
+        float value = Mathf.Clamp(striker.transform.position.x / limit, -1f, 1f);
+        syncingPlacement = true;
+        placementSlider.SetValueWithoutNotify(value);
+        syncingPlacement = false;
     }
 
     private void Update()
     {
         if (striker == null)
             striker = FindObjectOfType<StrikerController>();
+
+        UpdatePlacementSlider();
 
         if (powerRoot == null) return;
 
@@ -341,8 +541,13 @@ public class GameHUD : MonoBehaviour
         bool aiTurn = turnManager != null && turnManager.aiControlsPlayer2 && current == 2;
         bool localMode = turnManager != null && !turnManager.aiControlsPlayer2;
 
+        if (player1Label != null)
+            player1Label.text = "YOU";
         if (player2Label != null)
-            player2Label.text = localMode ? "PLAYER 2" : "AI";
+            player2Label.text = localMode ? "PLAYER 2" : "ROOKIE";
+
+        if (player1Label != null && scoreManager != null)
+            player1Label.text = "YOU";
 
         if (scoreManager != null && scoreManager.IsGameEnded)
         {
@@ -365,11 +570,21 @@ public class GameHUD : MonoBehaviour
             player2Accent.color = current == 2 ? new Color(0.80f, 0.78f, 0.72f) : inactiveGold;
 
         if (player1Card != null)
-            player1Card.sprite = UITheme.Rounded(34, UITheme.PanelBg,
+            player1Card.sprite = UITheme.Rounded(36, UITheme.PanelBg,
                 new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, current == 1 ? 0.85f : 0.22f), 3);
         if (player2Card != null)
-            player2Card.sprite = UITheme.Rounded(34, UITheme.PanelBg,
+            player2Card.sprite = UITheme.Rounded(36, UITheme.PanelBg,
                 new Color(0.85f, 0.82f, 0.75f, current == 2 ? 0.75f : 0.22f), 3);
+
+        if (player1AvatarRing != null)
+            player1AvatarRing.canvasRenderer.SetAlpha(current == 1 ? 1f : 0.60f);
+        if (player2AvatarRing != null)
+            player2AvatarRing.canvasRenderer.SetAlpha(current == 2 ? 1f : 0.60f);
+
+        float p1Fill = Mathf.Clamp01(p1Score / 9f);
+        float p2Fill = Mathf.Clamp01(p2Score / 9f);
+        if (player1Progress != null) player1Progress.fillAmount = p1Fill;
+        if (player2Progress != null) player2Progress.fillAmount = p2Fill;
 
         if (turnIndicator != null)
             turnIndicator.color = current == 1 ? Color.white : new Color(0.92f, 0.92f, 0.92f, 1f);
@@ -381,7 +596,7 @@ public class GameHUD : MonoBehaviour
             if (!over)
                 hintText.text = aiTurn
                     ? "Opponent is lining up a shot..."
-                    : "Drag from the striker to aim  ·  release to shoot";
+                    : "Drag striker to aim  ·  pinch or tap +/− to zoom";
         }
 
         lastP1Score = p1Score;
