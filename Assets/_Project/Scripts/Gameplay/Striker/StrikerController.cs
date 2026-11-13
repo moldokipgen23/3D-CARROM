@@ -15,6 +15,16 @@ public class StrikerController : MonoBehaviour
     // A lively but controllable flick: full power crosses the board in about
     // half a second, then the rails and the coin pack bleed the speed off.
     public float maxForce = 30f;
+
+    [Header("Shot Speed")]
+    // Speeds are set directly on the rigidbody instead of relying on impulse
+    // divided by mass, so the power meter maps to a predictable real speed.
+    public float minShotSpeed = 2.0f;
+    public float maxShotSpeed = 9.0f;
+    // Raw pull distance (fraction of the short screen edge) that reaches full
+    // power. Measuring in screen space keeps the pull identical at every zoom.
+    public float fullPowerScreenFraction = 0.28f;
+    public float pullCurve = 0.85f;
     public float baselineWidth = 1.842f;
     // 1.5x the ICF 4.13 cm striker. Commercial mobile carrom titles
     // deliberately oversize pieces so they stay readable on a phone screen.
@@ -46,6 +56,8 @@ public class StrikerController : MonoBehaviour
     private Vector3 shotDirection;
     private float shotPower;
     private bool isAiming = false;
+    private Vector2 dragStartScreen;
+    private float dragRangePixels = 320f;
     private GameObject strikerGlow;
     private GameObject aimLine;
     private bool isSlidingStriker;
@@ -189,17 +201,18 @@ public class StrikerController : MonoBehaviour
                                 RigidbodyConstraints.FreezeRotationZ;
         Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         Rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        // The board is slick, but a little drag keeps the striker from
-        // ricocheting around the rails forever.
-        Rigidbody.linearDamping = 0.35f;
-        Rigidbody.angularDamping = 0.90f;
+        // The board is slick, but a real striker loses most of its energy to
+        // rail impacts and coin contacts. A moderate rolling resistance stops
+        // it wandering around the frame for ten seconds after the shot.
+        Rigidbody.linearDamping = 0.75f;
+        Rigidbody.angularDamping = 1.20f;
 
         if (strikerPhysicsMaterial == null)
         {
             strikerPhysicsMaterial = new PhysicsMaterial();
-            strikerPhysicsMaterial.dynamicFriction = 0.10f;
-            strikerPhysicsMaterial.staticFriction = 0.10f;
-            strikerPhysicsMaterial.bounciness = 0.50f;
+            strikerPhysicsMaterial.dynamicFriction = 0.08f;
+            strikerPhysicsMaterial.staticFriction = 0.08f;
+            strikerPhysicsMaterial.bounciness = 0.42f;
             strikerPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
             strikerPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         }
@@ -340,6 +353,12 @@ public class StrikerController : MonoBehaviour
         shotPower = 0f;
         CurrentPowerNormalized = 0f;
 
+        // Screen-space pull: full power is a fixed fraction of the short edge,
+        // so zooming in or out never changes how hard the player has to drag.
+        dragStartScreen = Input.mousePosition;
+        float shortEdge = Mathf.Min(Screen.width, Screen.height);
+        dragRangePixels = Mathf.Clamp(shortEdge * fullPowerScreenFraction, 220f, 560f);
+
         if (strikerGlow != null)
             strikerGlow.GetComponent<Light>().intensity = 0.4f;
     }
@@ -359,8 +378,16 @@ public class StrikerController : MonoBehaviour
         // opposite way, exactly like a real carrom flick. The guideline is
         // therefore drawn ahead of the striker, not under the finger.
         shotDirection = -toPointer.normalized;
-        shotPower = Mathf.Clamp01(distance / maxDragDistance) * (maxForce - minForce) + minForce;
-        CurrentPowerNormalized = Mathf.Clamp01((shotPower - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
+
+        // Use the actual finger travel for power. A short flick still gives a
+        // usable shot, and a firm pull reaches maximum speed without needing to
+        // drag the length of the whole board (which was why hard pulls felt weak).
+        Vector2 screenDelta = (Vector2)Input.mousePosition - dragStartScreen;
+        float pull = Mathf.Clamp01(screenDelta.magnitude / dragRangePixels);
+        float normalized = Mathf.Pow(pull, Mathf.Max(0.35f, pullCurve));
+
+        CurrentPowerNormalized = normalized;
+        shotPower = Mathf.Lerp(minForce, maxForce, normalized);
     }
 
     private Vector3? GetPointerOnBoardPlane()
@@ -526,14 +553,19 @@ public class StrikerController : MonoBehaviour
             Rigidbody = GetComponent<Rigidbody>();
         if (Rigidbody == null) return false;
 
+        // Drive speed directly: impulse divided by a heavy mass made the same
+        // pull produce inconsistent shots and let the striker stall on the pack.
+        float normalized = Mathf.Clamp01(
+            (power - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
+        float speed = Mathf.Lerp(minShotSpeed, maxShotSpeed, normalized);
+
         Rigidbody.isKinematic = false;
-        Rigidbody.linearVelocity = Vector3.zero;
+        Rigidbody.linearVelocity = direction * speed;
         Rigidbody.angularVelocity = Vector3.zero;
-        Rigidbody.AddForce(direction * power, ForceMode.Impulse);
 
-        CurrentPowerNormalized = Mathf.Clamp01((power - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
+        CurrentPowerNormalized = normalized;
 
-        Debug.Log($"Shot fired - direction {direction}, power {power:F1}");
+        Debug.Log($"Shot fired - direction {direction}, speed {speed:F2} m/s, power {power:F1}");
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlayStrikerShoot();
@@ -543,6 +575,19 @@ public class StrikerController : MonoBehaviour
         TurnManager.Instance?.BeginShot();
         TurnManager.Instance?.EndShot();
         return true;
+    }
+
+    private void FixedUpdate()
+    {
+        // Kill the last centimetres of drift so a shot resolves promptly instead
+        // of creeping around the board and dropping into a pocket minutes later.
+        if (Rigidbody == null || Rigidbody.isKinematic) return;
+
+        if (Rigidbody.linearVelocity.sqrMagnitude < 0.0036f)
+        {
+            Rigidbody.linearVelocity = Vector3.zero;
+            Rigidbody.angularVelocity = Vector3.zero;
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -661,9 +706,15 @@ public class StrikerController : MonoBehaviour
             // interpolation enabled overwrites transform.position with its old
             // physics position on the next frame, which made slider placement
             // snap back to the centre. The shot re-enables dynamics.
+            // Clear velocities first: writing them after isKinematic = true is
+            // rejected by PhysX and spammed the log during slider placement.
+            if (!Rigidbody.isKinematic)
+            {
+                Rigidbody.linearVelocity = Vector3.zero;
+                Rigidbody.angularVelocity = Vector3.zero;
+            }
+
             Rigidbody.isKinematic = true;
-            Rigidbody.linearVelocity = Vector3.zero;
-            Rigidbody.angularVelocity = Vector3.zero;
             Rigidbody.position = pos;
             Rigidbody.rotation = Quaternion.identity;
         }

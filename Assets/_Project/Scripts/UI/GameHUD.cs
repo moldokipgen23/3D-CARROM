@@ -146,7 +146,7 @@ public class GameHUD : MonoBehaviour
         RectTransform safe = UITheme.Rect(canvas.transform, "SafeArea");
         UITheme.ApplySafeArea(safe);
 
-        Color shadeColor = new Color(0.05f, 0.035f, 0.025f);
+        Color shadeColor = new Color(0.155f, 0.048f, 0.038f);
         Image topShade = UITheme.Gradient(safe, "TopShade", shadeColor, shadeColor, 0.90f, 0f);
         UITheme.SetRect(topShade.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
             new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 500f));
@@ -167,6 +167,7 @@ public class GameHUD : MonoBehaviour
         BuildZoomControls(safe);
         BuildSoundToggle(safe);
         BuildBottomPanel(safe);
+        BuildMenuButton(safe);
 
         // Turn call-out: dark pill behind bold text so it stays readable on
         // both the pale board and the dark background.
@@ -320,19 +321,21 @@ public class GameHUD : MonoBehaviour
 
     private void BuildPlayerCard(Transform parent, bool left)
     {
+        // Compact reference-style player strip: bright orange avatar tile,
+        // small name, coin icon and score. Much lighter than the old full-width
+        // dark cards, so the board stays the hero of the screen.
         Image card = UITheme.Panel(parent, left ? "Player1Card" : "Player2Card",
-            UITheme.PanelBg, 36, true, 0.35f);
+            new Color(0.105f, 0.058f, 0.038f, 0.92f), 28, true, 0.40f);
         Vector2 corner = left ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
-        float x = left ? 14f : -14f;
-        UITheme.SetRect(card.rectTransform, corner, corner, corner, new Vector2(x, -14f),
-            new Vector2(380f, 176f));
+        float x = left ? 12f : -12f;
+        UITheme.SetRect(card.rectTransform, corner, corner, corner, new Vector2(x, -12f),
+            new Vector2(350f, 160f));
 
         if (left) player1Card = card; else player2Card = card;
 
         float side = left ? 0f : 1f;
         float dir = left ? 1f : -1f;
         Vector2 sideTop = new Vector2(side, 1f);
-        Vector2 sideMid = new Vector2(side, 0.5f);
         Vector2 sideBottom = new Vector2(side, 0f);
 
         // Active-turn accent strip along the inner edge. The sprite is plain
@@ -343,81 +346,64 @@ public class GameHUD : MonoBehaviour
         accent.color = new Color(1f, 1f, 1f, 0f);
         accent.raycastTarget = false;
         UITheme.SetRect(accent.rectTransform, new Vector2(side, 0f), new Vector2(side, 1f),
-            new Vector2(side, 0.5f), new Vector2(dir * 6f, 0f), new Vector2(8f, -26f));
+            new Vector2(side, 0.5f), new Vector2(dir * 5f, 0f), new Vector2(7f, -22f));
         if (left) player1Accent = accent; else player2Accent = accent;
 
-        // Portrait: gold rim with a generated bust / robot inside.
-        Image ring = UITheme.Circle(card.transform, "AvatarRing", UITheme.Gold,
-            4, left ? UITheme.Gold : new Color(0.62f, 0.60f, 0.56f));
-        UITheme.SetRect(ring.rectTransform, sideMid, sideMid, sideMid,
-            new Vector2(dir * 18f, 4f), new Vector2(104f, 104f));
+        // Square orange avatar tile, like the reference profile cards.
+        Image ring = UITheme.Panel(card.transform, "AvatarRing",
+            new Color(0.960f, 0.560f, 0.165f), 18, true, 0.75f);
+        UITheme.SetRect(ring.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(dir * 14f, -18f), new Vector2(104f, 104f));
         if (left) player1AvatarRing = ring; else player2AvatarRing = ring;
 
         Image portrait = UITheme.Rect(card.transform, "Portrait").gameObject.AddComponent<Image>();
         portrait.sprite = UITheme.PlayerPortrait(left);
         portrait.preserveAspect = true;
         portrait.raycastTarget = false;
-        UITheme.SetRect(portrait.rectTransform, sideMid, sideMid, sideMid,
-            new Vector2(dir * 18f, 4f), new Vector2(90f, 90f));
-
-        // Small coin badge anchored to the portrait is deliberately omitted:
-        // the black player's coin vanished against a dark badge, leaving an odd
-        // black blob on the avatar. The score row already carries the tally.
+        UITheme.SetRect(portrait.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(dir * 22f, -26f), new Vector2(88f, 88f));
 
         // Text block, mirrored for the right-hand card.
         TextAnchor align = left ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
-        float textX = dir * 126f;
-        float textW = 232f;
+        float textX = dir * 132f;
+        float textW = 196f;
 
         if (left)
-            player1Label = UITheme.Label(card.transform, "PlayerLabel", "YOU", 30, align, UITheme.Cream);
+            player1Label = UITheme.Label(card.transform, "PlayerLabel", "YOU", 27, align, UITheme.Cream);
         else
-            player2Label = UITheme.Label(card.transform, "PlayerLabel", "ROOKIE", 30, align, UITheme.Cream);
+            player2Label = UITheme.Label(card.transform, "PlayerLabel", "ROOKIE", 27, align, UITheme.Cream);
 
         Text label = left ? player1Label : player2Label;
         UITheme.SetRect(label.rectTransform, sideTop, sideTop, sideTop,
-            new Vector2(textX, -12f), new Vector2(textW, 34f));
+            new Vector2(textX, -18f), new Vector2(textW, 32f));
 
-        // Level / rank chip under the name.
-        Image levelChip = UITheme.Panel(card.transform, "LevelChip",
-            new Color(0.98f, 0.85f, 0.50f, 0.16f), 13, true, 0.45f);
-        UITheme.SetRect(levelChip.rectTransform, sideTop, sideTop, sideTop,
-            new Vector2(textX, -48f), new Vector2(112f, 26f));
+        Text disc = UITheme.Label(card.transform, "Disc", left ? "WHITE" : "BLACK", 15,
+            align, new Color(0.92f, 0.80f, 0.58f, 0.95f), FontStyle.Bold, false);
+        UITheme.SetRect(disc.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(textX, -50f), new Vector2(textW, 22f));
 
-        Text level = UITheme.Label(levelChip.transform, "LevelText",
-            left ? "WHITE · LV 12" : "BLACK · LV 8", 13, TextAnchor.MiddleCenter,
-            new Color(0.98f, 0.88f, 0.64f), FontStyle.Bold, false);
-        UITheme.Stretch(level.rectTransform, 4f, 4f, 0f, 0f);
-
-        // Coin tally, kept in reading order (coin, number, "/ 9") on both cards.
-        // The right-hand card starts further left so the tally never runs under
-        // the portrait.
-        float scoreStart = left ? 126f : 132f;
-        float ofOffset = left ? 96f : 82f;
-        Vector2 scoreAnchor = new Vector2(0f, 1f);
+        // Coin tally: coin icon + score. The thin bar underneath carries the
+        // out-of-nine progress, so the card stays as clean as the reference.
+        float scoreStart = dir * 132f;
+        float scoreOffset = left ? 172f : -176f;
 
         Image scoreCoin = UITheme.Icon(card.transform, "ScoreCoin", UITheme.CoinIcon(left), 30f);
-        UITheme.SetRect(scoreCoin.rectTransform, scoreAnchor, scoreAnchor, scoreAnchor,
-            new Vector2(scoreStart, -82f), new Vector2(30f, 30f));
+        UITheme.SetRect(scoreCoin.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(scoreStart, -80f), new Vector2(30f, 30f));
 
-        Text score = UITheme.Label(card.transform, "Score", "0", 36, TextAnchor.MiddleLeft,
-            UITheme.Gold);
-        UITheme.SetRect(score.rectTransform, scoreAnchor, scoreAnchor, scoreAnchor,
-            new Vector2(scoreStart + 36f, -76f), new Vector2(56f, 38f));
-
-        Text of = UITheme.Label(card.transform, "Of", "/ 9", 19, TextAnchor.MiddleLeft,
-            new Color(0.80f, 0.74f, 0.63f, 0.95f), FontStyle.Normal);
-        UITheme.SetRect(of.rectTransform, scoreAnchor, scoreAnchor, scoreAnchor,
-            new Vector2(scoreStart + ofOffset, -78f), new Vector2(48f, 28f));
+        Text score = UITheme.Label(card.transform, "Score", "0", 38,
+            left ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight, UITheme.Gold);
+        UITheme.SetRect(score.rectTransform, sideTop, sideTop, sideTop,
+            new Vector2(scoreOffset, -74f), new Vector2(58f, 40f));
 
         // Thin progress bar showing how many of the nine coins are home.
         Image track = UITheme.Panel(card.transform, "ProgressTrack",
-            new Color(0f, 0f, 0f, 0.38f), 5);
+            new Color(0f, 0f, 0f, 0.38f), 4);
         UITheme.SetRect(track.rectTransform, sideBottom, sideBottom, sideBottom,
-            new Vector2(textX, 14f), new Vector2(textW, 8f));
+            new Vector2(textX, 12f), new Vector2(textW, 7f));
 
         Image fill = UITheme.Rect(track.transform, "ProgressFill").gameObject.AddComponent<Image>();
-        fill.sprite = UITheme.Rounded(5, Color.white, Color.white, 0);
+        fill.sprite = UITheme.Rounded(4, Color.white, Color.white, 0);
         fill.type = Image.Type.Filled;
         fill.fillMethod = Image.FillMethod.Horizontal;
         fill.fillOrigin = left ? 0 : 1;
@@ -450,6 +436,26 @@ public class GameHUD : MonoBehaviour
         currentTurnText = UITheme.Label(turnIndicator.transform, "TurnText", "YOUR TURN", 23,
             TextAnchor.MiddleCenter, UITheme.Gold);
         UITheme.Stretch(currentTurnText.rectTransform, 8f, 8f, 0f, 0f);
+
+        // Coin wallet, echoing the reference's centre coin stack. Cosmetic in
+        // quick match, but it anchors the top bar and balances the two cards.
+        Image balancePill = UITheme.Panel(parent, "BalancePill",
+            new Color(0.10f, 0.065f, 0.042f, 0.88f), 22, true, 0.50f);
+        UITheme.SetRect(balancePill.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -84f), new Vector2(208f, 58f));
+
+        Image coinBack = UITheme.Icon(balancePill.transform, "CoinBack", UITheme.CoinIcon(true), 38f);
+        UITheme.SetRect(coinBack.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f), new Vector2(10f, 4f), new Vector2(38f, 38f));
+
+        Image coinFront = UITheme.Icon(balancePill.transform, "CoinFront", UITheme.CoinIcon(true), 42f);
+        UITheme.SetRect(coinFront.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f), new Vector2(24f, -3f), new Vector2(42f, 42f));
+
+        Text balance = UITheme.Label(balancePill.transform, "Balance", "2,450", 28,
+            TextAnchor.MiddleLeft, UITheme.Cream, FontStyle.Bold);
+        UITheme.SetRect(balance.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f),
+            new Vector2(0f, 0.5f), new Vector2(84f, 0f), new Vector2(-94f, 40f));
 
         Image queenChip = UITheme.Panel(parent, "QueenChip", new Color(0.10f, 0.07f, 0.045f, 0.92f), 20);
         UITheme.SetRect(queenChip.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
@@ -529,6 +535,28 @@ public class GameHUD : MonoBehaviour
         soundLabel.color = muted
             ? new Color(0.74f, 0.67f, 0.57f)
             : UITheme.Cream;
+    }
+
+    /// <summary>Round menu button in the bottom corner, matching the reference layout.</summary>
+    private void BuildMenuButton(Transform parent)
+    {
+        Button menu = UITheme.Button(parent, "MenuButton", "",
+            new Color(0.045f, 0.028f, 0.018f, 0.94f), UITheme.Gold, 1, 44, true);
+        UITheme.SetRect(menu.GetComponent<RectTransform>(), new Vector2(1f, 0f),
+            new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-22f, 24f),
+            new Vector2(84f, 84f));
+
+        for (int i = 0; i < 3; i++)
+        {
+            Image bar = UITheme.Rect(menu.transform, "Bar" + i).gameObject.AddComponent<Image>();
+            bar.sprite = UITheme.Rounded(2, Color.white, Color.white, 0);
+            bar.color = UITheme.Gold;
+            bar.raycastTarget = false;
+            UITheme.SetRect(bar.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, 14f - i * 14f), new Vector2(34f, 4f));
+        }
+
+        menu.onClick.AddListener(() => SceneFlow.LoadScene(SceneFlow.MAIN_MENU));
     }
 
     private void BuildBottomPanel(Transform parent)
@@ -771,10 +799,10 @@ public class GameHUD : MonoBehaviour
             player2Accent.color = current == 2 ? new Color(0.80f, 0.78f, 0.72f) : inactiveGold;
 
         if (player1Card != null)
-            player1Card.sprite = UITheme.Rounded(36, UITheme.PanelBg,
+            player1Card.sprite = UITheme.Rounded(28, new Color(0.105f, 0.058f, 0.038f, 0.92f),
                 new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, current == 1 ? 0.85f : 0.22f), 3);
         if (player2Card != null)
-            player2Card.sprite = UITheme.Rounded(36, UITheme.PanelBg,
+            player2Card.sprite = UITheme.Rounded(28, new Color(0.105f, 0.058f, 0.038f, 0.92f),
                 new Color(0.85f, 0.82f, 0.75f, current == 2 ? 0.75f : 0.22f), 3);
 
         if (player1AvatarRing != null)

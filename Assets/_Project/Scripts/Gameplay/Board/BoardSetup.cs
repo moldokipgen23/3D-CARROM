@@ -212,9 +212,11 @@ public class BoardSetup : MonoBehaviour
         if (railPhysicsMaterial != null) return railPhysicsMaterial;
 
         railPhysicsMaterial = new PhysicsMaterial("BoardRails");
-        railPhysicsMaterial.dynamicFriction = 0.10f;
-        railPhysicsMaterial.staticFriction = 0.10f;
-        railPhysicsMaterial.bounciness = 0.45f;
+        railPhysicsMaterial.dynamicFriction = 0.08f;
+        railPhysicsMaterial.staticFriction = 0.08f;
+        // Firm but not springy: a rail hit redirects the striker and kills some
+        // energy, instead of firing it around the frame indefinitely.
+        railPhysicsMaterial.bounciness = 0.35f;
         railPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
         railPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         return railPhysicsMaterial;
@@ -328,6 +330,8 @@ public class BoardSetup : MonoBehaviour
         // brass ring stealing attention from the pieces.
         Material rimMat = CreateMaterial(new Color(0.185f, 0.098f, 0.050f), 0.15f, 0.45f);
         Material throatMat = CreateMaterial(new Color(0.10f, 0.065f, 0.04f), 0.15f, 0.55f);
+        // Warm orange corner guard, matching the reference board's pocket pads.
+        Material bumperMat = CreateMaterial(new Color(0.960f, 0.560f, 0.165f), 0.0f, 0.55f);
 
         for (int i = 0; i < 4; i++)
         {
@@ -335,7 +339,17 @@ public class BoardSetup : MonoBehaviour
             pocketGroup.transform.parent = parent.transform;
             pocketGroup.transform.localPosition = new Vector3(pocketPositions[i].x, 0f, pocketPositions[i].z);
 
-            float holeTop = SurfaceTopY + 0.0005f;
+            // Low orange pad around the mouth; the black hole sits proud of it.
+            GameObject bumper = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            bumper.name = "CornerBumper";
+            bumper.transform.parent = pocketGroup.transform;
+            bumper.transform.localPosition = new Vector3(0f, SurfaceTopY + 0.0012f, 0f);
+            bumper.transform.localScale = new Vector3(
+                (pocketRadius + 0.048f) * 2f, 0.0025f, (pocketRadius + 0.048f) * 2f);
+            bumper.GetComponent<MeshRenderer>().sharedMaterial = bumperMat;
+            RemoveCollider(bumper);
+
+            float holeTop = SurfaceTopY + 0.0042f;
             float holeHeight = 0.07f;
 
             GameObject pocketHole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -355,7 +369,7 @@ public class BoardSetup : MonoBehaviour
             GameObject pocketRim = CreateTorusRing(pocketGroup.transform,
                 pocketRadius + pocketRimWidth * 0.5f, pocketRimWidth, rimMat);
             pocketRim.name = "Rim";
-            pocketRim.transform.localPosition = new Vector3(0, SurfaceTopY + 0.0025f, 0);
+            pocketRim.transform.localPosition = new Vector3(0, holeTop + 0.0012f, 0);
 
             SphereCollider pocketCollider = pocketGroup.AddComponent<SphereCollider>();
             pocketCollider.radius = pocketRadius * 0.98f;

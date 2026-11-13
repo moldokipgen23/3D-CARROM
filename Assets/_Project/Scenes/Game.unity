@@ -369,6 +369,10 @@ MonoBehaviour:
   maxDragDistance: 1
   minForce: 7
   maxForce: 30
+  minShotSpeed: 2
+  maxShotSpeed: 9
+  fullPowerScreenFraction: 0.28
+  pullCurve: 0.85
   baselineWidth: 1.842
   strikerRadius: 0.131
   baselineZ: 0.99

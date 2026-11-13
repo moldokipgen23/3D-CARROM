@@ -213,8 +213,8 @@ public class CoinSpawner : MonoBehaviour
         rb.constraints = RigidbodyConstraints.FreezePositionY |
                          RigidbodyConstraints.FreezeRotationX |
                          RigidbodyConstraints.FreezeRotationZ;
-        rb.linearDamping = 0.25f;
-        rb.angularDamping = 0.70f;
+        rb.linearDamping = 0.85f;
+        rb.angularDamping = 1.10f;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 

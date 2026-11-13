@@ -39,19 +39,19 @@ public class Coin : MonoBehaviour
         // striker must stay heavier than the coins to transfer momentum.
         // Coins are much lighter than the striker so a hard shot scatters the pile.
         Rigidbody.mass = 0.8f;
-        Rigidbody.linearDamping = 0.25f;
-        Rigidbody.angularDamping = 0.70f;
+        Rigidbody.linearDamping = 0.85f;
+        Rigidbody.angularDamping = 1.10f;
 
         if (PhysicsMaterial == null)
         {
             PhysicsMaterial = new PhysicsMaterial();
-            // Powdered carrom board: coins glide a long way and keep their
-            // speed instead of stopping dead after a few centimetres.
-            PhysicsMaterial.dynamicFriction = 0.04f;
-            PhysicsMaterial.staticFriction = 0.04f;
+            // Powdered carrom board: coins glide, but rolling resistance brings
+            // them to rest in a couple of seconds instead of drifting forever.
+            PhysicsMaterial.dynamicFriction = 0.035f;
+            PhysicsMaterial.staticFriction = 0.035f;
             // Hard acrylic coins rebound off each other, so the pack bursts
             // open on a solid break instead of absorbing the whole impulse.
-            PhysicsMaterial.bounciness = 0.55f;
+            PhysicsMaterial.bounciness = 0.45f;
             PhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
             PhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         }
@@ -126,6 +126,18 @@ public class Coin : MonoBehaviour
     public void SetSpawnPoint(Vector3 position)
     {
         spawnPosition = position;
+    }
+
+    private void FixedUpdate()
+    {
+        if (Rigidbody == null || Rigidbody.isKinematic || IsPocketed) return;
+
+        // Snap the last slow drift to rest so the turn resolves cleanly.
+        if (Rigidbody.linearVelocity.sqrMagnitude < 0.0064f)
+        {
+            Rigidbody.linearVelocity = Vector3.zero;
+            Rigidbody.angularVelocity = Vector3.zero;
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
