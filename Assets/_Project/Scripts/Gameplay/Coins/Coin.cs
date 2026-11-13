@@ -38,17 +38,20 @@ public class Coin : MonoBehaviour
         // A real carrom coin weighs ~5 g against a ~15 g striker, so the
         // striker must stay heavier than the coins to transfer momentum.
         // Coins are much lighter than the striker so a hard shot scatters the pile.
-        Rigidbody.mass = 1f;
-        Rigidbody.linearDamping = 0.12f;
-        Rigidbody.angularDamping = 0.5f;
+        Rigidbody.mass = 0.8f;
+        Rigidbody.linearDamping = 0.25f;
+        Rigidbody.angularDamping = 0.70f;
 
         if (PhysicsMaterial == null)
         {
             PhysicsMaterial = new PhysicsMaterial();
-            // Polished carrom board: low sliding friction, lively rebound.
-            PhysicsMaterial.dynamicFriction = 0.08f;
-            PhysicsMaterial.staticFriction = 0.08f;
-            PhysicsMaterial.bounciness = 0.45f;
+            // Powdered carrom board: coins glide a long way and keep their
+            // speed instead of stopping dead after a few centimetres.
+            PhysicsMaterial.dynamicFriction = 0.04f;
+            PhysicsMaterial.staticFriction = 0.04f;
+            // Hard acrylic coins rebound off each other, so the pack bursts
+            // open on a solid break instead of absorbing the whole impulse.
+            PhysicsMaterial.bounciness = 0.55f;
             PhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
             PhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         }

@@ -130,6 +130,27 @@ public class BoardSetup : MonoBehaviour
 
         Material surfaceMat = CreateSurfaceMaterial();
         surface.GetComponent<MeshRenderer>().sharedMaterial = surfaceMat;
+
+        // Tournament boards are dusted with powder: pieces slide almost freely
+        // and keep their momentum instead of scrubbing to a halt.
+        Collider surfaceCollider = surface.GetComponent<Collider>();
+        if (surfaceCollider != null)
+            surfaceCollider.sharedMaterial = GetPlayingSurfacePhysicsMaterial();
+    }
+
+    private static PhysicsMaterial playingSurfacePhysicsMaterial;
+
+    private static PhysicsMaterial GetPlayingSurfacePhysicsMaterial()
+    {
+        if (playingSurfacePhysicsMaterial != null) return playingSurfacePhysicsMaterial;
+
+        playingSurfacePhysicsMaterial = new PhysicsMaterial("PowderedCarromSurface");
+        playingSurfacePhysicsMaterial.dynamicFriction = 0.05f;
+        playingSurfacePhysicsMaterial.staticFriction = 0.05f;
+        playingSurfacePhysicsMaterial.bounciness = 0.0f;
+        playingSurfacePhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
+        playingSurfacePhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Minimum;
+        return playingSurfacePhysicsMaterial;
     }
 
     private void CreateWoodFrame(GameObject parent)
@@ -161,6 +182,7 @@ public class BoardSetup : MonoBehaviour
         // Painted orange rim, like the tournament boards in commercial carrom
         // games. The lighter cap and the dark inner lip give it a bevel.
         Material frameMat = CreateMaterial(new Color(0.905f, 0.505f, 0.150f), 0.0f, 0.55f);
+        PhysicsMaterial railMaterial = GetRailPhysicsMaterial();
 
         for (int i = 0; i < 4; i++)
         {
@@ -170,11 +192,32 @@ public class BoardSetup : MonoBehaviour
             frame.transform.localPosition = positions[i];
             frame.transform.localScale = scales[i];
             frame.GetComponent<MeshRenderer>().sharedMaterial = frameMat;
+
+            // A real carrom rail rebounds the striker; without a material the
+            // default dead restitution made every rebound feel mushy.
+            Collider frameCollider = frame.GetComponent<Collider>();
+            if (frameCollider != null)
+                frameCollider.sharedMaterial = railMaterial;
         }
 
         CreateFrameCap(parent, capHeight);
         CreateFrameInlay(parent);
         CreateInnerLip(parent);
+    }
+
+    private static PhysicsMaterial railPhysicsMaterial;
+
+    private static PhysicsMaterial GetRailPhysicsMaterial()
+    {
+        if (railPhysicsMaterial != null) return railPhysicsMaterial;
+
+        railPhysicsMaterial = new PhysicsMaterial("BoardRails");
+        railPhysicsMaterial.dynamicFriction = 0.10f;
+        railPhysicsMaterial.staticFriction = 0.10f;
+        railPhysicsMaterial.bounciness = 0.45f;
+        railPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
+        railPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
+        return railPhysicsMaterial;
     }
 
     /// <summary>Slightly lighter, slightly proud top rail that gives the frame its bevel.</summary>

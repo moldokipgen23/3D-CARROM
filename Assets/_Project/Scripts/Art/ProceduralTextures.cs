@@ -170,12 +170,16 @@ public static class ProceduralTextures
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
         tex.name = "StrikerFace";
 
-        Color ivory = new Color(0.972f, 0.944f, 0.874f);
-        Color ivoryShade = new Color(0.842f, 0.782f, 0.662f);
-        Color vermilion = new Color(0.690f, 0.145f, 0.090f);
-        Color deepRed = new Color(0.430f, 0.060f, 0.045f);
-        Color gold = new Color(0.880f, 0.690f, 0.320f);
-        Color ink = new Color(0.300f, 0.130f, 0.070f);
+        // Matches the reference striker: ivory lacquer disc, thin brass edge,
+        // one crisp vermilion ring and a small gold centre boss. Big printed
+        // flowers looked busy at phone size and nothing like the reference.
+        Color ivory = new Color(0.985f, 0.955f, 0.885f);
+        Color ivoryShade = new Color(0.855f, 0.790f, 0.665f);
+        Color warmCream = new Color(0.955f, 0.890f, 0.740f);
+        Color vermilion = new Color(0.705f, 0.135f, 0.095f);
+        Color deepRed = new Color(0.455f, 0.055f, 0.045f);
+        Color gold = new Color(0.905f, 0.720f, 0.335f);
+        Color goldDeep = new Color(0.700f, 0.500f, 0.190f);
 
         float half = size * 0.5f;
 
@@ -187,75 +191,43 @@ public static class ProceduralTextures
                 float py = (y + 0.5f - half) / half;
                 float r = Mathf.Sqrt(px * px + py * py);
 
-                // Lacquered ivory with a faint turned grain.
-                Color c = Color.Lerp(ivoryShade, ivory, Mathf.Clamp01(1.08f - r * 0.90f));
-                c *= 0.975f + 0.032f * (0.5f + 0.5f * Mathf.Sin(r * 96f + px * 3f));
+                // Lacquered ivory with a faint turned grain and a warm falloff.
+                Color c = Color.Lerp(ivoryShade, ivory, Mathf.Clamp01(1.05f - r * 0.70f));
+                c *= 0.985f + 0.022f * (0.5f + 0.5f * Mathf.Sin(r * 120f + px * 2.5f));
 
-                // Printed rosette: two rings of rounded petals, like the
-                // classic commercial striker face. Petals are drawn as closed
-                // leaf shapes (pointed at both ends) so they read as a flower
-                // rather than a pinwheel.
-                if (r > 0.170f && r < 0.845f)
+                // Outer cream band, then a thin brass pinstripe.
+                c = RingBand(c, r, 0.735f, 0.905f, warmCream, 0.45f);
+                c = RingBand(c, r, 0.905f, 0.918f, gold, 0.85f);
+
+                // Single printed vermilion ring - the signature of the reference
+                // striker. Kept narrow so it reads as decoration, not a target.
+                c = RingBand(c, r, 0.560f, 0.628f, vermilion, 0.97f);
+                c = RingBand(c, r, 0.545f, 0.560f, goldDeep, 0.55f);
+                c = RingBand(c, r, 0.628f, 0.642f, goldDeep, 0.55f);
+
+                // Inner medallion: fine cream ring then a gold boss.
+                c = RingBand(c, r, 0.352f, 0.368f, ivoryShade, 0.55f);
+                c = RingBand(c, r, 0.300f, 0.314f, gold, 0.75f);
+
+                if (r < 0.290f)
                 {
-                    float angle = Mathf.Atan2(py, px);
-                    const float step = Mathf.PI * 2f / 12f;
-
-                    // Long outer petals.
-                    float a1 = angle - Mathf.Round(angle / step) * step;
-                    float t1 = Mathf.Clamp01((r - 0.170f) / (0.845f - 0.170f));
-                    float w1 = 0.118f * Mathf.Pow(Mathf.Sin(t1 * Mathf.PI), 0.62f);
-                    float edge1 = Mathf.Clamp01((w1 - Mathf.Abs(a1) * r) * 62f);
-                    if (edge1 > 0f)
-                    {
-                        Color petal = Color.Lerp(vermilion, deepRed, t1 * 0.55f);
-                        c = Color.Lerp(c, petal, edge1 * 0.95f);
-                    }
-
-                    // Short inner petals, offset half a step, fill the gaps.
-                    if (r < 0.600f)
-                    {
-                        float shifted = angle - step * 0.5f;
-                        float a2 = shifted - Mathf.Round(shifted / step) * step;
-                        float t2 = Mathf.Clamp01((r - 0.170f) / (0.600f - 0.170f));
-                        float w2 = 0.098f * Mathf.Pow(Mathf.Sin(t2 * Mathf.PI), 0.62f);
-                        float edge2 = Mathf.Clamp01((w2 - Mathf.Abs(a2) * r) * 62f);
-                        if (edge2 > 0f)
-                        {
-                            Color petal = Color.Lerp(gold * 0.92f, vermilion, t2 * 0.7f);
-                            c = Color.Lerp(c, petal, edge2 * 0.90f);
-                        }
-                    }
+                    float t = Mathf.Clamp01(r / 0.290f);
+                    Color boss = Color.Lerp(
+                        Color.Lerp(gold, Color.white, 0.18f * (1f - t)),
+                        goldDeep, t * t * 0.55f);
+                    c = Color.Lerp(c, boss, 1f - SmoothRange(0.268f, 0.290f, r));
                 }
 
-                // Fine printed rings around the rosette and the rim.
-                c = RingBand(c, r, 0.158f, 0.174f, ink, 0.85f);
-                c = RingBand(c, r, 0.848f, 0.862f, ink, 0.90f);
-                c = RingBand(c, r, 0.872f, 0.886f, gold, 0.95f);
-                c = RingBand(c, r, 0.902f, 0.914f, deepRed, 0.90f);
-
-                // Centre: red enamel boss inside a thin gold collar.
-                if (r < 0.150f)
-                {
-                    if (r > 0.122f)
-                    {
-                        float ringT = Mathf.Clamp01((r - 0.122f) / 0.028f);
-                        c = Color.Lerp(gold, gold * 0.70f, ringT);
-                    }
-                    else
-                    {
-                        c = Color.Lerp(vermilion, deepRed, Mathf.Clamp01(r / 0.122f) * 0.75f);
-                        if (r < 0.038f) c = Color.Lerp(c, ivory, 0.90f);
-                        if (r < 0.016f) c = deepRed;
-                    }
-                }
+                // Small stitched dot in the very centre, like the reference.
+                c = RingBand(c, r, 0.088f, 0.102f, goldDeep, 0.75f);
 
                 // Gentle specular sheen from the key light (upper left).
                 float sheen = Mathf.Clamp01(1f - Vector2.Distance(
                     new Vector2(px, py), new Vector2(-0.30f, 0.36f)) / 0.95f);
-                c = Color.Lerp(c, Color.white, sheen * sheen * 0.20f);
+                c = Color.Lerp(c, Color.white, sheen * sheen * 0.22f);
 
                 // Slightly darker lacquer under the bevel at the very edge.
-                c = Color.Lerp(c, ivoryShade * 0.72f, SmoothRange(0.955f, 1f, r));
+                c = Color.Lerp(c, ivoryShade * 0.78f, SmoothRange(0.940f, 1f, r));
 
                 c.a = 1f;
                 tex.SetPixel(x, y, c);
@@ -277,6 +249,42 @@ public static class ProceduralTextures
         float t = (r - inner) / Mathf.Max(0.0001f, outer - inner);
         Color shade = Color.Lerp(band * 0.75f, Color.Lerp(band, Color.white, 0.25f), t);
         return Color.Lerp(c, shade, strength);
+    }
+
+    /// <summary>
+    /// Soft radial ring glow used under the striker. Pure white with an alpha
+    /// falloff so the material can tint it gold.
+    /// </summary>
+    public static Texture2D CreateGlowTexture(int size = 128)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.name = "StrikerHalo";
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        float half = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float px = (x + 0.5f - half) / half;
+                float py = (y + 0.5f - half) / half;
+                float d = Mathf.Sqrt(px * px + py * py);
+
+                // Bright ring just outside the striker face, fading inwards and
+                // outwards so it reads as light on the board, not a sticker.
+                float ring = Mathf.Exp(-Mathf.Pow((d - 0.74f) / 0.105f, 2f));
+                float inner = Mathf.Clamp01(1f - d / 0.72f);
+                float alpha = Mathf.Clamp01(ring * 0.85f + inner * inner * 0.18f);
+                alpha *= Mathf.Clamp01((1f - d) * 6f);
+
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        tex.Apply(false, true);
+        return tex;
     }
 
     /// <summary>GLSL-style smoothstep between two edges, returning 0..1.</summary>

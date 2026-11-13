@@ -9,10 +9,12 @@ public class StrikerController : MonoBehaviour
     public static StrikerController Instance { get; private set; }
 
     [Header("Striker Settings")]
-    public float strikerMass = 8f;
+    public float strikerMass = 5f;
     public float maxDragDistance = 1.0f;
-    public float minForce = 8f;
-    public float maxForce = 55f;
+    public float minForce = 7f;
+    // A lively but controllable flick: full power crosses the board in about
+    // half a second, then the rails and the coin pack bleed the speed off.
+    public float maxForce = 30f;
     public float baselineWidth = 1.842f;
     // 1.5x the ICF 4.13 cm striker. Commercial mobile carrom titles
     // deliberately oversize pieces so they stay readable on a phone screen.
@@ -49,6 +51,8 @@ public class StrikerController : MonoBehaviour
     private bool isSlidingStriker;
     private List<GameObject> aimDots;
     private List<Material> aimDotMats;
+    private Transform haloTransform;
+    private Material haloMaterial;
 
     private void Awake()
     {
@@ -63,7 +67,9 @@ public class StrikerController : MonoBehaviour
     private void BuildStrikerVisual()
     {
         // Warm turned brass for the rim, satin ivory for the printed face.
-        Material rimMat = CreateSimpleMaterial(new Color(0.84f, 0.64f, 0.30f), 0.80f, 0.94f);
+        // Heavy metalness turns almost black in Built-in without reflection
+        // probes, so keep it low and let the warm diffuse carry the brass.
+        Material rimMat = CreateSimpleMaterial(new Color(0.93f, 0.72f, 0.34f), 0.35f, 0.92f);
         Material faceMat = CreateSimpleMaterial(Color.white, 0.04f, 0.62f);
         faceMat.mainTexture = ProceduralTextures.CreateStrikerFaceTexture();
 
@@ -83,6 +89,8 @@ public class StrikerController : MonoBehaviour
         PieceMeshFactory.CreateContactShadow(
             transform, strikerRadius, -strikerThickness * 0.5f + 0.0008f, 2.5f);
 
+        CreateHalo();
+
         GameObject glowObj = new GameObject("StrikerGlow");
         glowObj.transform.parent = transform;
         glowObj.transform.localPosition = new Vector3(0, 0.01f, 0);
@@ -92,6 +100,51 @@ public class StrikerController : MonoBehaviour
         glow.intensity = 0.12f;
         glow.range = 0.18f;
         strikerGlow = glowObj;
+    }
+
+    /// <summary>
+    /// Soft gold halo under the striker, like the glowing ring around the
+    /// striker in the reference game. It makes the piece read instantly even
+    /// on a pale board and reinforces the "premium piece" look.
+    /// </summary>
+    private void CreateHalo()
+    {
+        GameObject halo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        halo.name = "StrikerHalo";
+        halo.transform.SetParent(transform, false);
+        halo.transform.localPosition = new Vector3(
+            0f, -strikerThickness * 0.5f + 0.0016f, 0f);
+        halo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        halo.transform.localScale = new Vector3(strikerRadius * 2.3f, strikerRadius * 2.3f, 1f);
+        haloTransform = halo.transform;
+
+        Shader shader = Shader.Find("Sprites/Default");
+        if (shader == null) shader = Shader.Find("Unlit/Transparent");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        haloMaterial = new Material(shader);
+        haloMaterial.mainTexture = ProceduralTextures.CreateGlowTexture();
+        haloMaterial.color = new Color(1f, 0.80f, 0.45f, 0.26f);
+        haloMaterial.renderQueue = 2990;
+
+        MeshRenderer renderer = halo.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = haloMaterial;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        RemoveCollider(halo);
+    }
+
+    private void UpdateHalo()
+    {
+        if (haloTransform == null || haloMaterial == null) return;
+
+        float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 2.1f);
+        float size = strikerRadius * (2.30f + pulse * 0.18f);
+        haloTransform.localScale = new Vector3(size, size, 1f);
+
+        Color c = haloMaterial.color;
+        c.a = 0.18f + pulse * 0.07f + (isAiming ? 0.10f : 0f);
+        haloMaterial.color = c;
     }
 
     private GameObject Cylinder(string name, Material mat, Vector3 scale, float localY)
@@ -136,15 +189,17 @@ public class StrikerController : MonoBehaviour
                                 RigidbodyConstraints.FreezeRotationZ;
         Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         Rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        Rigidbody.linearDamping = 0.1f;
-        Rigidbody.angularDamping = 0.8f;
+        // The board is slick, but a little drag keeps the striker from
+        // ricocheting around the rails forever.
+        Rigidbody.linearDamping = 0.35f;
+        Rigidbody.angularDamping = 0.90f;
 
         if (strikerPhysicsMaterial == null)
         {
             strikerPhysicsMaterial = new PhysicsMaterial();
-            strikerPhysicsMaterial.dynamicFriction = 0.08f;
-            strikerPhysicsMaterial.staticFriction = 0.08f;
-            strikerPhysicsMaterial.bounciness = 0.45f;
+            strikerPhysicsMaterial.dynamicFriction = 0.10f;
+            strikerPhysicsMaterial.staticFriction = 0.10f;
+            strikerPhysicsMaterial.bounciness = 0.50f;
             strikerPhysicsMaterial.frictionCombine = PhysicsMaterialCombine.Minimum;
             strikerPhysicsMaterial.bounceCombine = PhysicsMaterialCombine.Maximum;
         }
@@ -166,6 +221,8 @@ public class StrikerController : MonoBehaviour
 
     private void Update()
     {
+        UpdateHalo();
+
         if (!CanAcceptInput())
         {
             if (isAiming)
@@ -460,6 +517,7 @@ public class StrikerController : MonoBehaviour
         if (worldDirection.sqrMagnitude < 0.0001f || power <= 0f) return false;
         if (TurnManager.Instance != null && TurnManager.Instance.IsShotInProgress()) return false;
 
+        power = Mathf.Clamp(power, minForce, maxForce);
         Vector3 direction = new Vector3(worldDirection.x, 0f, worldDirection.z).normalized;
 
         HideAimPreview();
@@ -495,9 +553,10 @@ public class StrikerController : MonoBehaviour
     }
 
     /// <summary>
-    /// A carrom striker is only a few times heavier than a coin, so a clean hit
-    /// kills most of its forward momentum. Without this the striker ploughs
-    /// through the pack and follows coins straight into a pocket (a foul).
+    /// A real carrom striker keeps most of its momentum when it clips a coin.
+    /// Only a light speed trim here: the physics solver already transfers the
+    /// impulse, and a heavy scripted loss made the striker die on the pack's
+    /// front row, so shots looked like they did nothing.
     /// </summary>
     private void AbsorbCoinImpact()
     {
@@ -506,8 +565,8 @@ public class StrikerController : MonoBehaviour
         Vector3 velocity = Rigidbody.linearVelocity;
         if (velocity.sqrMagnitude < 0.01f) return;
 
-        Rigidbody.linearVelocity = velocity * 0.55f;
-        Rigidbody.angularVelocity *= 0.7f;
+        Rigidbody.linearVelocity = velocity * 0.86f;
+        Rigidbody.angularVelocity *= 0.9f;
     }
 
     public bool IsWithinBaseline(Vector3 position)

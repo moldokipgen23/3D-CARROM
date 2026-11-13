@@ -31,6 +31,16 @@ public class GameHUD : MonoBehaviour
     private Text player2Label;
     private Text hintText;
     private Text toastText;
+    private GameObject toastRoot;
+    private CanvasGroup toastGroup;
+    private GameObject foulBanner;
+    private CanvasGroup foulCanvas;
+    private Text foulTitleText;
+    private Text foulDetailText;
+    private Image foulFlash;
+    private Coroutine foulRoutine;
+    private bool foulVisible;
+    private int lastTurnNotified = 1;
     private Image player1Card;
     private Image player2Card;
     private Image player1Accent;
@@ -106,6 +116,18 @@ public class GameHUD : MonoBehaviour
     private void HandleTurnChanged(int player)
     {
         Refresh();
+
+        // A short "YOUR TURN" call-out makes the hand-off obvious without
+        // repeating on every extra turn the same player earns.
+        if (player != lastTurnNotified)
+        {
+            lastTurnNotified = player;
+
+            // The foul card already explains the hand-off; stacking the turn
+            // toast behind it looked cluttered and duplicated the message.
+            if (!foulVisible)
+                ShowTurnToast(player);
+        }
     }
 
     private void BuildUI()
@@ -143,11 +165,154 @@ public class GameHUD : MonoBehaviour
         BuildZoomControls(safe);
         BuildBottomPanel(safe);
 
-        toastText = UITheme.Label(safe, "Toast", "", 44, TextAnchor.MiddleCenter, UITheme.Gold,
-            FontStyle.Bold);
-        UITheme.SetRect(toastText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f), new Vector2(0f, 240f), new Vector2(800f, 80f));
-        toastText.gameObject.SetActive(false);
+        // Turn call-out: dark pill behind bold text so it stays readable on
+        // both the pale board and the dark background.
+        toastRoot = new GameObject("ToastRoot", typeof(RectTransform));
+        toastRoot.transform.SetParent(safe, false);
+        toastGroup = toastRoot.AddComponent<CanvasGroup>();
+        toastGroup.alpha = 0f;
+        toastGroup.blocksRaycasts = false;
+        toastGroup.interactable = false;
+
+        RectTransform toastRect = toastRoot.GetComponent<RectTransform>();
+        UITheme.SetRect(toastRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), new Vector2(0f, 250f), new Vector2(640f, 104f));
+
+        Image toastBg = UITheme.Panel(toastRoot.transform, "ToastBg",
+            new Color(0.075f, 0.045f, 0.030f), 26, true, 0.55f);
+        toastBg.raycastTarget = false;
+        UITheme.Stretch(toastBg.rectTransform, 0f, 0f, 0f, 0f);
+
+        toastText = UITheme.Label(toastRoot.transform, "Toast", "", 44,
+            TextAnchor.MiddleCenter, UITheme.Gold, FontStyle.Bold);
+        UITheme.Stretch(toastText.rectTransform, 12f, 12f, 0f, 0f);
+        toastRoot.SetActive(false);
+
+        BuildFoulBanner(safe);
+    }
+
+    /// <summary>
+    /// Big, unmistakable foul call: a centre-screen card plus a brief red edge
+    /// flash. Fouls used to be silent (only a log line), so players could not
+    /// tell why the turn changed.
+    /// </summary>
+    private void BuildFoulBanner(Transform parent)
+    {
+        foulFlash = UITheme.Rect(parent, "FoulFlash").gameObject.AddComponent<Image>();
+        foulFlash.sprite = null;
+        foulFlash.color = new Color(0.85f, 0.06f, 0.03f, 0f);
+        foulFlash.raycastTarget = false;
+        UITheme.Stretch(foulFlash.rectTransform, 0f, 0f, 0f, 0f);
+
+        Image card = UITheme.Panel(parent, "FoulBanner",
+            new Color(0.235f, 0.038f, 0.030f, 0.97f), 34, true, 0.60f);
+        UITheme.SetRect(card.rectTransform, new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(0f, 30f), new Vector2(880f, 206f));
+
+        foulBanner = card.gameObject;
+        foulCanvas = foulBanner.AddComponent<CanvasGroup>();
+        foulCanvas.alpha = 0f;
+        foulCanvas.blocksRaycasts = false;
+        foulCanvas.interactable = false;
+
+        // Thin gold rule above the title.
+        Image rule = UITheme.Rect(card.transform, "Rule").gameObject.AddComponent<Image>();
+        rule.color = new Color(UITheme.Gold.r, UITheme.Gold.g, UITheme.Gold.b, 0.85f);
+        rule.raycastTarget = false;
+        UITheme.SetRect(rule.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -22f), new Vector2(120f, 3f));
+
+        foulTitleText = UITheme.Label(card.transform, "FoulTitle", "FOUL!", 50,
+            TextAnchor.MiddleCenter, new Color(1f, 0.58f, 0.26f));
+        foulTitleText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        foulTitleText.verticalOverflow = VerticalWrapMode.Overflow;
+        foulTitleText.resizeTextForBestFit = true;
+        foulTitleText.resizeTextMinSize = 28;
+        foulTitleText.resizeTextMaxSize = 50;
+        UITheme.SetRect(foulTitleText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(-40f, 74f));
+
+        foulDetailText = UITheme.Label(card.transform, "FoulDetail", "", 26,
+            TextAnchor.MiddleCenter, new Color(0.97f, 0.92f, 0.84f), FontStyle.Normal);
+        foulDetailText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        foulDetailText.verticalOverflow = VerticalWrapMode.Overflow;
+        UITheme.SetRect(foulDetailText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+            new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(-48f, 84f));
+
+        foulBanner.SetActive(false);
+    }
+
+    /// <summary>
+    /// Shows the foul card for a couple of seconds. If the card is already up
+    /// (striker pocketed, then the penalty resolves a moment later) the text is
+    /// updated in place instead of replaying the pop, which would look glitchy.
+    /// </summary>
+    public void ShowFoul(string title, string detail)
+    {
+        if (foulBanner == null) return;
+
+        bool wasVisible = foulVisible;
+
+        if (foulRoutine != null)
+            StopCoroutine(foulRoutine);
+
+        foulTitleText.text = title;
+        foulDetailText.text = detail;
+        foulBanner.SetActive(true);
+        foulVisible = true;
+
+        if (wasVisible)
+        {
+            foulCanvas.alpha = 1f;
+            foulCanvas.transform.localScale = Vector3.one;
+        }
+
+        foulRoutine = StartCoroutine(FoulRoutine(wasVisible));
+    }
+
+    private IEnumerator FoulRoutine(bool skipIntro)
+    {
+        if (foulCanvas == null) yield break;
+
+        const float inTime = 0.16f;
+        const float holdTime = 1.6f;
+        const float outTime = 0.30f;
+
+        if (!skipIntro)
+        {
+            float t = 0f;
+            while (t < inTime)
+            {
+                t += Time.deltaTime;
+                float p = Mathf.Clamp01(t / inTime);
+                foulCanvas.alpha = p;
+                float pop = 1f - (1f - p) * (1f - p);
+                foulCanvas.transform.localScale = Vector3.one * Mathf.Lerp(0.84f, 1f, pop);
+                foulFlash.color = new Color(0.85f, 0.06f, 0.03f, 0.10f * (1f - p));
+                yield return null;
+            }
+        }
+
+        foulCanvas.alpha = 1f;
+        foulCanvas.transform.localScale = Vector3.one;
+        foulFlash.color = new Color(0.85f, 0.06f, 0.03f, 0f);
+
+        yield return new WaitForSeconds(holdTime);
+
+        float elapsed = 0f;
+        while (elapsed < outTime)
+        {
+            elapsed += Time.deltaTime;
+            foulCanvas.alpha = 1f - Mathf.Clamp01(elapsed / outTime);
+            yield return null;
+        }
+
+        foulBanner.SetActive(false);
+        foulCanvas.alpha = 0f;
+        foulFlash.color = new Color(0.85f, 0.06f, 0.03f, 0f);
+        foulRoutine = null;
+        foulVisible = false;
     }
 
     private void BuildPlayerCard(Transform parent, bool left)
@@ -607,32 +772,71 @@ public class GameHUD : MonoBehaviour
         if (toastText == null) return;
         if (score <= previousScore) return;
 
-        if (toastRoutine != null) StopCoroutine(toastRoutine);
-        toastRoutine = StartCoroutine(ToastRoutine(who));
+        ShowToastText(who + "  +1", UITheme.Gold);
     }
 
-    private IEnumerator ToastRoutine(string who)
+    private void ShowTurnToast(int player)
     {
-        toastText.text = who + "  +1";
-        toastText.gameObject.SetActive(true);
+        string label = player == 1
+            ? "YOUR TURN"
+            : (turnManager != null && turnManager.aiControlsPlayer2
+                ? "ROOKIE'S TURN"
+                : "PLAYER 2'S TURN");
 
-        Vector2 start = toastText.rectTransform.anchoredPosition;
+        Color color = player == 1 ? UITheme.Gold : new Color(0.94f, 0.88f, 0.76f);
+        ShowToastText(label, color);
+    }
+
+    private void ShowToastText(string message, Color color)
+    {
+        if (toastText == null) return;
+
+        if (toastRoutine != null) StopCoroutine(toastRoutine);
+        toastRoutine = StartCoroutine(ToastRoutine(message, color));
+    }
+
+    private IEnumerator ToastRoutine(string message, Color baseColor)
+    {
+        if (toastRoot == null) yield break;
+
+        toastText.text = message;
+        toastText.color = baseColor;
+        toastRoot.SetActive(true);
+
+        RectTransform rect = toastRoot.GetComponent<RectTransform>();
+        Vector2 start = rect.anchoredPosition;
+
+        // Quick fade in, a readable hold, then a short drift-up fade out.
         float t = 0f;
-        Color c = UITheme.Gold;
-
-        while (t < 1.2f)
+        const float inTime = 0.14f;
+        while (t < inTime)
         {
             t += Time.deltaTime;
-            float p = Mathf.Clamp01(t / 1.2f);
-            toastText.rectTransform.anchoredPosition = start + new Vector2(0f, p * 40f);
-            c.a = 1f - Mathf.SmoothStep(0.5f, 1f, p);
-            toastText.color = c;
+            float p = Mathf.Clamp01(t / inTime);
+            toastGroup.alpha = p;
+            rect.anchoredPosition = start + new Vector2(0f, Mathf.Lerp(-14f, 0f, p));
             yield return null;
         }
 
-        toastText.gameObject.SetActive(false);
-        toastText.rectTransform.anchoredPosition = start;
-        toastText.color = UITheme.Gold;
+        toastGroup.alpha = 1f;
+        rect.anchoredPosition = start;
+
+        yield return new WaitForSeconds(1.05f);
+
+        float elapsed = 0f;
+        const float outTime = 0.42f;
+        while (elapsed < outTime)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / outTime);
+            toastGroup.alpha = 1f - p;
+            rect.anchoredPosition = start + new Vector2(0f, p * 26f);
+            yield return null;
+        }
+
+        toastRoot.SetActive(false);
+        toastGroup.alpha = 0f;
+        rect.anchoredPosition = start;
         toastRoutine = null;
     }
 }

@@ -100,7 +100,7 @@ public class AIPlayer : MonoBehaviour
             strikerController.ResetToBaseline(PlayerIndex);
             yield return new WaitForSeconds(0.2f);
             isThinking = false;
-            strikerController.ShootTowards(new Vector3(0f, 0f, -1f), 32f);
+            strikerController.ShootTowards(new Vector3(0f, 0f, -1f), 24f);
             yield break;
         }
 
@@ -151,7 +151,7 @@ public class AIPlayer : MonoBehaviour
     /// </summary>
     private bool TryPlanShot(out PlannedShot shot)
     {
-        shot = new PlannedShot { direction = new Vector3(0f, 0f, -1f), power = 34f };
+        shot = new PlannedShot { direction = new Vector3(0f, 0f, -1f), power = 22f };
 
         if (strikerController == null) return false;
 
@@ -253,7 +253,7 @@ public class AIPlayer : MonoBehaviour
                         best.direction = approach;
                         best.aimPoint = ghost;
                         best.power = Mathf.Clamp(
-                            20f + t * 8f + pocketDistance * 4f, 28f, 46f);
+                            15f + t * 6f + pocketDistance * 3f, 18f, 30f);
                         found = true;
                     }
                 }
@@ -273,7 +273,7 @@ public class AIPlayer : MonoBehaviour
     /// </summary>
     private bool TryPlanFallbackShot(out PlannedShot shot)
     {
-        shot = new PlannedShot { direction = new Vector3(0f, 0f, -1f), power = 34f };
+        shot = new PlannedShot { direction = new Vector3(0f, 0f, -1f), power = 22f };
 
         if (strikerController == null) return false;
 
@@ -329,7 +329,7 @@ public class AIPlayer : MonoBehaviour
         shot.startX = startX;
         shot.direction = direction;
         shot.aimPoint = bestPos;
-        shot.power = Mathf.Clamp(18f + shotDistance * 10f, 30f, 44f);
+        shot.power = Mathf.Clamp(13f + shotDistance * 7f, 18f, 30f);
 
         ApplyAccuracyNoise(ref shot);
         return true;

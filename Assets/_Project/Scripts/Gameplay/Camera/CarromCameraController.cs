@@ -30,7 +30,7 @@ public class CarromCameraController : MonoBehaviour
     public float lookAtHeight = 0.35f;
     // Lifts the board above the viewport centre so the HUD and the placement
     // slider get breathing room without covering the frame. Fraction of span.
-    public float framingBias = 0.12f;
+    public float framingBias = 0.05f;
 
     private const float TopDownAngle = 89.9f;
 

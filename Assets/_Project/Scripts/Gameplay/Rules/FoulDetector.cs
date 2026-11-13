@@ -12,11 +12,17 @@ public class FoulDetector : MonoBehaviour
     public TurnManager turnManager;
     public ScoreManager scoreManager;
     public CoinSpawner coinSpawner;
+    public GameHUD gameHUD;
 
     private bool shotActive = false;
     private bool coinTouched = false;
     private bool coinPocketed = false;
     private bool strikerPocketed = false;
+
+    // The striker dropping in is reported on impact so the player immediately
+    // understands why the shot stopped; the penalty summary refreshes the same
+    // card once the shot settles instead of stacking a second banner.
+    private bool strikerFoulAnnounced = false;
 
     private void Awake()
     {
@@ -28,6 +34,9 @@ public class FoulDetector : MonoBehaviour
         if (turnManager == null) turnManager = FindObjectOfType<TurnManager>();
         if (scoreManager == null) scoreManager = FindObjectOfType<ScoreManager>();
         if (coinSpawner == null) coinSpawner = FindObjectOfType<CoinSpawner>();
+
+        if (gameHUD == null && scoreManager != null) gameHUD = scoreManager.gameHUD;
+        if (gameHUD == null) gameHUD = FindObjectOfType<GameHUD>(true);
     }
 
     /// <summary>Called by TurnManager.BeginShot() for both human and AI shots.</summary>
@@ -37,6 +46,7 @@ public class FoulDetector : MonoBehaviour
         coinTouched = false;
         coinPocketed = false;
         strikerPocketed = false;
+        strikerFoulAnnounced = false;
     }
 
     /// <summary>Called by the striker when it physically touches a coin.</summary>
@@ -56,6 +66,22 @@ public class FoulDetector : MonoBehaviour
     public void RegisterStrikerPocketed()
     {
         strikerPocketed = true;
+
+        // Fire the on-screen call immediately. Waiting for the shot to settle
+        // meant the striker had already teleported back to the baseline and the
+        // turn silently changed, which looked like a bug.
+        if (shotActive && !strikerFoulAnnounced)
+        {
+            strikerFoulAnnounced = true;
+
+            if (gameHUD == null) gameHUD = FindObjectOfType<GameHUD>(true);
+
+            int player = turnManager != null ? turnManager.GetCurrentPlayer() : 1;
+            int opponent = player == 1 ? 2 : 1;
+
+            gameHUD?.ShowFoul("STRIKER POCKETED",
+                $"Foul against {PlayerName(player)}\nTurn passes to {PlayerName(opponent)}");
+        }
     }
 
     /// <summary>
@@ -69,23 +95,39 @@ public class FoulDetector : MonoBehaviour
         shotActive = false;
 
         int player = turnManager != null ? turnManager.GetCurrentPlayer() : 1;
+        int opponent = player == 1 ? 2 : 1;
 
         bool foul = strikerPocketed || (!coinTouched && !coinPocketed);
 
         if (foul)
         {
-            if (strikerPocketed)
-                Debug.LogWarning($"Player {player} fouled: striker pocketed");
-            else
-                Debug.LogWarning($"Player {player} fouled: no coin touched");
+            string reason = strikerPocketed ? "striker pocketed" : "no coin touched";
+            Debug.LogWarning($"Player {player} fouled: {reason}");
 
+            bool coinReturned = false;
             if (scoreManager != null)
-                scoreManager.ApplyFoulPenalty(player);
+                coinReturned = scoreManager.ApplyFoulPenalty(player);
+
+            if (gameHUD == null) gameHUD = FindObjectOfType<GameHUD>(true);
+
+            string detail = coinReturned
+                ? $"1 coin returned to the board\nTurn passes to {PlayerName(opponent)}"
+                : $"Turn passes to {PlayerName(opponent)}";
+
+            gameHUD?.ShowFoul(
+                strikerPocketed ? "STRIKER POCKETED" : "NO COIN TOUCHED", detail);
         }
 
         coinTouched = false;
         coinPocketed = false;
         strikerPocketed = false;
+        strikerFoulAnnounced = false;
         return foul;
+    }
+
+    private string PlayerName(int player)
+    {
+        if (player == 1) return "You";
+        return turnManager != null && turnManager.aiControlsPlayer2 ? "AI" : "Player 2";
     }
 }

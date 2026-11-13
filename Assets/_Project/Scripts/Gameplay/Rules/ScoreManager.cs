@@ -228,18 +228,112 @@ public class ScoreManager : MonoBehaviour
         return queenAwardedTo == player;
     }
 
-    public void ApplyFoulPenalty(int player)
+    public bool ApplyFoulPenalty(int player)
     {
-        if (gameEnded) return;
+        if (gameEnded) return false;
 
         int playerIndex = player - 1;
-        if (playerIndex < 0 || playerIndex >= 2) return;
+        if (playerIndex < 0 || playerIndex >= 2) return false;
 
+        bool returnedCoin = false;
         if (playerScores[playerIndex] > 0)
+        {
             playerScores[playerIndex]--;
+            returnedCoin = ReturnPocketedCoinToBoard(player);
+        }
 
         Debug.LogWarning($"Player {player} fouled - one coin returned. Total: {playerScores[playerIndex]}");
         UpdateScore(player);
+        return returnedCoin;
+    }
+
+    /// <summary>
+    /// Real carrom foul rule: one already-pocketed coin goes back to the board,
+    /// placed on the centre spot (or the nearest free spot around it).
+    /// </summary>
+    private bool ReturnPocketedCoinToBoard(int player)
+    {
+        CoinType type = player == 1 ? CoinType.White : CoinType.Black;
+        Coin[] coins = FindObjectsOfType<Coin>(true);
+
+        Coin target = null;
+        for (int i = 0; i < coins.Length; i++)
+        {
+            if (coins[i] != null && coins[i].Type == type && coins[i].IsPocketed)
+            {
+                target = coins[i];
+                break;
+            }
+        }
+
+        if (target == null) return false;
+
+        target.ResetCoin();
+
+        Vector3 spawn = target.transform.position;
+        Vector3 spot = FindOpenCentreSpot(spawn.y, 0.11f, target, coins);
+
+        target.transform.position = spot;
+        if (target.Rigidbody != null)
+        {
+            target.Rigidbody.position = spot;
+            target.Rigidbody.rotation = Quaternion.identity;
+            target.Rigidbody.linearVelocity = Vector3.zero;
+            target.Rigidbody.angularVelocity = Vector3.zero;
+        }
+
+        Debug.Log($"Player {player}'s {type} coin returned to the centre");
+        return true;
+    }
+
+    private Vector3 FindOpenCentreSpot(float y, float radius, Coin ignore, Coin[] coins)
+    {
+        StrikerController striker = FindObjectOfType<StrikerController>(true);
+
+        for (int ring = 0; ring < 8; ring++)
+        {
+            float ringRadius = ring == 0 ? 0f : 0.12f + (ring - 1) * 0.11f;
+            int steps = ring == 0 ? 1 : 8 * ring;
+
+            for (int i = 0; i < steps; i++)
+            {
+                float angle = Mathf.PI * 2f * i / steps;
+                Vector3 point = new Vector3(
+                    Mathf.Cos(angle) * ringRadius, y, Mathf.Sin(angle) * ringRadius);
+
+                if (IsFreeSpot(point, radius, ignore, coins, striker))
+                    return point;
+            }
+        }
+
+        return new Vector3(0f, y, 0f);
+    }
+
+    private static bool IsFreeSpot(Vector3 point, float radius, Coin ignore,
+        Coin[] coins, StrikerController striker)
+    {
+        float limitSq = radius * radius;
+
+        for (int i = 0; i < coins.Length; i++)
+        {
+            Coin coin = coins[i];
+            if (coin == null || coin == ignore) continue;
+            if (coin.IsPocketed || !coin.gameObject.activeInHierarchy) continue;
+
+            Vector3 delta = coin.transform.position - point;
+            delta.y = 0f;
+            if (delta.sqrMagnitude < limitSq) return false;
+        }
+
+        if (striker != null)
+        {
+            Vector3 delta = striker.transform.position - point;
+            delta.y = 0f;
+            float strikerLimit = radius + striker.strikerRadius;
+            if (delta.sqrMagnitude < strikerLimit * strikerLimit) return false;
+        }
+
+        return true;
     }
 
     public void ResetScores()
