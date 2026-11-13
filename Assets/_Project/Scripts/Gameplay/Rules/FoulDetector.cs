@@ -23,6 +23,7 @@ public class FoulDetector : MonoBehaviour
     // understands why the shot stopped; the penalty summary refreshes the same
     // card once the shot settles instead of stacking a second banner.
     private bool strikerFoulAnnounced = false;
+    private bool foulSoundPlayed = false;
 
     private void Awake()
     {
@@ -47,6 +48,7 @@ public class FoulDetector : MonoBehaviour
         coinPocketed = false;
         strikerPocketed = false;
         strikerFoulAnnounced = false;
+        foulSoundPlayed = false;
     }
 
     /// <summary>Called by the striker when it physically touches a coin.</summary>
@@ -79,6 +81,8 @@ public class FoulDetector : MonoBehaviour
             int player = turnManager != null ? turnManager.GetCurrentPlayer() : 1;
             int opponent = player == 1 ? 2 : 1;
 
+            PlayFoulSoundOnce();
+
             gameHUD?.ShowFoul("STRIKER POCKETED",
                 $"Foul against {PlayerName(player)}\nTurn passes to {PlayerName(opponent)}");
         }
@@ -110,6 +114,8 @@ public class FoulDetector : MonoBehaviour
 
             if (gameHUD == null) gameHUD = FindObjectOfType<GameHUD>(true);
 
+            PlayFoulSoundOnce();
+
             string detail = coinReturned
                 ? $"1 coin returned to the board\nTurn passes to {PlayerName(opponent)}"
                 : $"Turn passes to {PlayerName(opponent)}";
@@ -129,5 +135,14 @@ public class FoulDetector : MonoBehaviour
     {
         if (player == 1) return "You";
         return turnManager != null && turnManager.aiControlsPlayer2 ? "AI" : "Player 2";
+    }
+
+    private void PlayFoulSoundOnce()
+    {
+        if (foulSoundPlayed) return;
+        foulSoundPlayed = true;
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayFoulSound();
     }
 }

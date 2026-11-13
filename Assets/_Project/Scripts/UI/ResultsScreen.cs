@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,6 +21,11 @@ public class ResultsScreen : MonoBehaviour
     private bool built = false;
     private Text titleText;
     private Text subtitleText;
+    private CanvasGroup overlayGroup;
+    private RectTransform cardRoot;
+    private Image sparkleL;
+    private Image sparkleR;
+    private Coroutine revealRoutine;
 
     private void Start()
     {
@@ -52,6 +58,13 @@ public class ResultsScreen : MonoBehaviour
         RectTransform root = UITheme.Rect(safe, "ResultsRoot");
         UITheme.Stretch(root, 0f, 0f, 0f, 0f);
 
+        // One group drives the whole reveal: dim, card and buttons fade in
+        // together, and clicks stay blocked until the card has landed.
+        overlayGroup = root.gameObject.AddComponent<CanvasGroup>();
+        overlayGroup.alpha = 0f;
+        overlayGroup.blocksRaycasts = false;
+        overlayGroup.interactable = false;
+
         Image dimmer = UITheme.Panel(root, "Dimmer", new Color(0f, 0f, 0f, 0.78f), 0);
         UITheme.Stretch(dimmer.rectTransform, 0f, 0f, 0f, 0f);
 
@@ -61,12 +74,13 @@ public class ResultsScreen : MonoBehaviour
 
         // The whole overlay (dim + card) hides together.
         resultsPanel = root.gameObject;
+        cardRoot = panel.rectTransform;
 
-        Image sparkleL = UITheme.Icon(panel.transform, "SparkleL", UITheme.Sparkle(UITheme.Gold), 56f);
+        sparkleL = UITheme.Icon(panel.transform, "SparkleL", UITheme.Sparkle(UITheme.Gold), 56f);
         UITheme.SetRect(sparkleL.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0.5f, 1f), new Vector2(-330f, -70f), new Vector2(56f, 56f));
 
-        Image sparkleR = UITheme.Icon(panel.transform, "SparkleR", UITheme.Sparkle(UITheme.Gold), 34f);
+        sparkleR = UITheme.Icon(panel.transform, "SparkleR", UITheme.Sparkle(UITheme.Gold), 34f);
         UITheme.SetRect(sparkleR.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0.5f, 1f), new Vector2(340f, -48f), new Vector2(34f, 34f));
 
@@ -176,11 +190,105 @@ public class ResultsScreen : MonoBehaviour
                 queenScoreText.text = scoreManager.GetQueenStatusText().ToUpperInvariant();
         }
 
+        if (OverlayAvailable())
+        {
+            overlayGroup.alpha = 0f;
+            overlayGroup.blocksRaycasts = false;
+            overlayGroup.interactable = false;
+
+            if (cardRoot != null)
+            {
+                cardRoot.localScale = Vector3.one * 0.90f;
+                cardRoot.anchoredPosition = new Vector2(0f, -26f);
+            }
+
+            if (revealRoutine != null)
+                StopCoroutine(revealRoutine);
+            revealRoutine = StartCoroutine(RevealRoutine(playerWon));
+        }
+
+        if (AudioManager.Instance != null)
+        {
+            if (playerWon) AudioManager.Instance.PlayVictory();
+            else AudioManager.Instance.PlayDefeat();
+        }
+
         Debug.Log("Results screen shown: " + (resultText != null ? resultText.text : message));
+    }
+
+    private bool OverlayAvailable()
+    {
+        return overlayGroup != null;
+    }
+
+    private IEnumerator RevealRoutine(bool playerWon)
+    {
+        if (cardRoot == null) yield break;
+
+        // Dim fades in quickly, then the card springs up to rest.
+        const float duration = 0.34f;
+        float t = 0f;
+
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float p = Mathf.Clamp01(t / duration);
+            float eased = 1f - (1f - p) * (1f - p);
+
+            overlayGroup.alpha = Mathf.Clamp01(p * 1.35f);
+            cardRoot.localScale = Vector3.one * Mathf.Lerp(0.90f, 1f, eased);
+            cardRoot.anchoredPosition = new Vector2(0f, Mathf.Lerp(-26f, 0f, eased));
+
+            PulseSparkles(t * 4f + (playerWon ? 0f : 1.2f), playerWon);
+            yield return null;
+        }
+
+        overlayGroup.alpha = 1f;
+        overlayGroup.blocksRaycasts = true;
+        overlayGroup.interactable = true;
+        cardRoot.localScale = Vector3.one;
+        cardRoot.anchoredPosition = Vector2.zero;
+
+        // Keep the corner sparkles breathing while the card is on screen.
+        while (resultsPanel != null && resultsPanel.activeSelf)
+        {
+            PulseSparkles(Time.unscaledTime * 2.6f, playerWon);
+            yield return null;
+        }
+
+        revealRoutine = null;
+    }
+
+    private void PulseSparkles(float phase, bool playerWon)
+    {
+        float pulseL = 0.5f + 0.5f * Mathf.Sin(phase);
+
+        if (sparkleL != null)
+        {
+            sparkleL.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.90f, 1.12f, pulseL);
+            Color c = sparkleL.color;
+            c.a = playerWon ? Mathf.Lerp(0.70f, 1f, pulseL) : Mathf.Lerp(0.30f, 0.55f, pulseL);
+            sparkleL.color = c;
+        }
+
+        if (sparkleR != null)
+        {
+            float pulseR = 0.5f + 0.5f * Mathf.Sin(phase + 2.1f);
+            sparkleR.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.88f, 1.16f, pulseR);
+            Color c = sparkleR.color;
+            c.a = playerWon ? Mathf.Lerp(0.60f, 0.95f, pulseR) : Mathf.Lerp(0.25f, 0.50f, pulseR);
+            sparkleR.color = c;
+        }
     }
 
     public void HideResults()
     {
+        if (revealRoutine != null)
+        {
+            StopCoroutine(revealRoutine);
+            revealRoutine = null;
+        }
+
         if (resultsPanel != null)
             resultsPanel.SetActive(false);
     }

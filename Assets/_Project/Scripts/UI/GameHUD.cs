@@ -58,6 +58,8 @@ public class GameHUD : MonoBehaviour
     private Slider placementSlider;
     private bool syncingPlacement;
     private Coroutine toastRoutine;
+    private Button soundButton;
+    private Text soundLabel;
     private int lastP1Score = -1;
     private int lastP2Score = -1;
 
@@ -163,6 +165,7 @@ public class GameHUD : MonoBehaviour
         BuildPlayerCard(safe, false);
         BuildCenterPanel(safe);
         BuildZoomControls(safe);
+        BuildSoundToggle(safe);
         BuildBottomPanel(safe);
 
         // Turn call-out: dark pill behind bold text so it stays readable on
@@ -492,6 +495,40 @@ public class GameHUD : MonoBehaviour
             if (direction > 0) cameraController.ZoomIn();
             else cameraController.ZoomOut();
         });
+    }
+
+    private void BuildSoundToggle(Transform parent)
+    {
+        // Sits beside the zoom pill, under the opponent card, so it never
+        // covers the board or the striker.
+        soundButton = UITheme.Button(parent, "SoundButton", "SOUND",
+            new Color(0.08f, 0.055f, 0.035f, 0.80f), UITheme.Cream, 18, 28, true);
+        UITheme.SetRect(soundButton.GetComponent<RectTransform>(), new Vector2(1f, 1f),
+            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-182f, -198f),
+            new Vector2(130f, 60f));
+
+        soundLabel = soundButton.GetComponentInChildren<Text>();
+        soundButton.onClick.AddListener(OnSoundToggle);
+        UpdateSoundLabel();
+    }
+
+    private void OnSoundToggle()
+    {
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.ToggleMuted();
+
+        UpdateSoundLabel();
+    }
+
+    private void UpdateSoundLabel()
+    {
+        if (soundLabel == null) return;
+
+        bool muted = AudioManager.Instance != null && AudioManager.Instance.IsMuted;
+        soundLabel.text = muted ? "MUTED" : "SOUND";
+        soundLabel.color = muted
+            ? new Color(0.74f, 0.67f, 0.57f)
+            : UITheme.Cream;
     }
 
     private void BuildBottomPanel(Transform parent)

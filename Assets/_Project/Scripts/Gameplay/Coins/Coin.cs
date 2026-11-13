@@ -82,6 +82,9 @@ public class Coin : MonoBehaviour
 
         IsPocketed = true;
 
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayPocketSound();
+
         if (Rigidbody != null)
         {
             Rigidbody.linearVelocity = Vector3.zero;
@@ -123,5 +126,26 @@ public class Coin : MonoBehaviour
     public void SetSpawnPoint(Vector3 position)
     {
         spawnPosition = position;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.collider == null || AudioManager.Instance == null) return;
+
+        float impact = collision.relativeVelocity.magnitude;
+
+        Coin otherCoin = collision.collider.GetComponent<Coin>();
+        if (otherCoin != null || collision.collider.CompareTag("Coin"))
+        {
+            AudioManager.Instance.PlayCoinHit(impact);
+            return;
+        }
+
+        // The striker reports its own coin and rail contacts; ignore it here so
+        // striker-on-coin does not clack twice in the same frame.
+        if (collision.collider.GetComponentInParent<StrikerController>() != null) return;
+
+        if (impact > 0.35f)
+            AudioManager.Instance.PlayBoardHit(impact);
     }
 }

@@ -7,6 +7,8 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField] private Button _playLocalButton;
 
     private Text _coinBalance;
+    private Button _soundButton;
+    private Text _soundLabel;
     private Canvas canvas;
 
     private void Start()
@@ -68,6 +70,7 @@ public class MainMenuManager : MonoBehaviour
         // --- top bar -------------------------------------------------------
         BuildProfileChip(safe);
         BuildWalletChip(safe);
+        BuildSoundToggle(safe);
 
         // --- logo ----------------------------------------------------------
         RectTransform logoGroup = UITheme.Rect(safe, "LogoGroup");
@@ -191,6 +194,38 @@ public class MainMenuManager : MonoBehaviour
             TextAnchor.MiddleLeft, UITheme.Cream, FontStyle.Bold);
         UITheme.SetRect(_coinBalance.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f),
             new Vector2(0f, 0.5f), new Vector2(78f, 0f), new Vector2(-90f, 48f));
+    }
+
+    private void BuildSoundToggle(Transform parent)
+    {
+        _soundButton = UITheme.Button(parent, "SoundButton", "SOUND ON",
+            new Color(0.16f, 0.11f, 0.07f, 0.92f), UITheme.Cream, 22, 28, true);
+        UITheme.SetRect(_soundButton.GetComponent<RectTransform>(), new Vector2(1f, 1f),
+            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -120f),
+            new Vector2(250f, 62f));
+
+        _soundLabel = _soundButton.GetComponentInChildren<Text>();
+        _soundButton.onClick.AddListener(OnSoundToggle);
+        UpdateSoundLabel();
+    }
+
+    private void OnSoundToggle()
+    {
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.ToggleMuted();
+
+        UpdateSoundLabel();
+    }
+
+    private void UpdateSoundLabel()
+    {
+        if (_soundLabel == null) return;
+
+        bool muted = AudioManager.Instance != null && AudioManager.Instance.IsMuted;
+        _soundLabel.text = muted ? "SOUND OFF" : "SOUND ON";
+        _soundLabel.color = muted
+            ? new Color(0.74f, 0.67f, 0.57f)
+            : UITheme.Cream;
     }
 
     private void OnPlayVsAI()

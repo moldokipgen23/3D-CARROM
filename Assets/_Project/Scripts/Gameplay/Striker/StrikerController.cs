@@ -534,6 +534,10 @@ public class StrikerController : MonoBehaviour
         CurrentPowerNormalized = Mathf.Clamp01((power - minForce) / Mathf.Max(0.0001f, maxForce - minForce));
 
         Debug.Log($"Shot fired - direction {direction}, power {power:F1}");
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayStrikerShoot();
+
         OnShotFired?.Invoke(new Vector2(direction.x, direction.z), power);
 
         TurnManager.Instance?.BeginShot();
@@ -545,10 +549,21 @@ public class StrikerController : MonoBehaviour
     {
         if (collision.collider == null) return;
 
-        if (collision.collider.GetComponent<Coin>() != null || collision.collider.CompareTag("Coin"))
+        float impact = collision.relativeVelocity.magnitude;
+        bool hitCoin = collision.collider.GetComponent<Coin>() != null ||
+                       collision.collider.CompareTag("Coin");
+
+        if (hitCoin)
         {
             FoulDetector.Instance?.RegisterCoinTouched();
             AbsorbCoinImpact();
+
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayCoinHit(impact);
+        }
+        else if (AudioManager.Instance != null && impact > 0.35f)
+        {
+            AudioManager.Instance.PlayBoardHit(impact);
         }
     }
 

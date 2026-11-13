@@ -627,6 +627,14 @@ public static class UITheme
             FontStyle.Bold);
         Stretch(text.rectTransform, 10f, 10f, 0f, 0f);
 
+        // Every runtime button gets the same soft tap, so UI feedback is
+        // consistent without wiring an AudioSource into each screen.
+        button.onClick.AddListener(() =>
+        {
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayButtonClick();
+        });
+
         return button;
     }
 
